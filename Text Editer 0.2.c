@@ -9,11 +9,34 @@ int** color;
 int numberOfRow;
 int* numberOfColumn;
 
+enum Color {
+	//高区分配色
+	/*Color_Default = 0x07,
+	Color_Comment = 0x02,
+	Color_Symbol = 0x0c,
+	Color_Bracket = 0x0e,
+	Color_Number = 0x0f,
+	Color_Preprocessor = 0x0d,
+	Color_Character = 0x0a,
+	Color_String = 0x06,
+	Color_Variable = 0x0b*/
+	//低区分配色
+	Color_Default = 0x07,
+	Color_Comment = 0x02,
+	Color_Symbol = 0x0c,
+	Color_Bracket = 0x0c,
+	Color_Number = 0x09,
+	Color_Preprocessor = 0x0d,
+	Color_Character = 0x09,
+	Color_String = 0x09,
+	Color_Variable = 0x07
+};
+
 void ColorChar(char c, int color)//输出彩色字符
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 	putchar(c);
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x07);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color_Default);
 }
 
 char* InputFileName()
@@ -37,14 +60,48 @@ char* InputFileName()
 	return fileName;
 }
 
+void DrawColorInRange(int r1, int c1, int r2, int c2, int cl)
+{
+	int r, c;
+	for(r=r1; r<=r2; r++)
+	{
+		if(r == r1) c = c1;
+		else c = 0;
+		while(c < numberOfColumn[r])
+		{
+			color[r][c] = cl;
+			if(r == r2 && c == c2) break;
+			c++;
+		}
+	}
+}
+
+int FindMatch(int r, int c1, char ch)
+{
+	int c;
+	for(c=c1+1; c<numberOfColumn[r]; c++)
+	{
+		if(content[r][c] == ch && color[r][c] == Color_Default)
+		{
+			if(ch == '\'' && content[r][c-1] == '\\')
+			{
+				continue;
+			}
+			return c;
+		}
+	}
+	return -1;
+}
+
 void AnalysisColor()
 {
 	int r, c, commentStart, characterStart, stringStart;
+	int end;
 	color =(int**) calloc(numberOfRow, sizeof(int*));
-	//符号和数字着色
+	//符号着色
 	for(r=0; r<numberOfRow; r++)
 	{
-		color[r] =(int*) calloc(numberOfRow, sizeof(int));
+		color[r] =(int*) calloc(numberOfColumn[r], sizeof(int));
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
 			/*----------------
@@ -65,7 +122,7 @@ void AnalysisColor()
 			123-126:{|}~
 			127:    退格符
 			----------------*/
-			color[r][c] = 0x07;
+			color[r][c] = Color_Default;
 			if(content[r][c] == '!'
 				|| content[r][c] == '%'
 				|| content[r][c] == '&'
@@ -85,17 +142,63 @@ void AnalysisColor()
 				|| content[r][c] == '|'
 				|| content[r][c] == '~')
 			{
-				color[r][c] = 0x0c;
+				color[r][c] = Color_Symbol;
 			}
 			else if(content[r][c] == '(' || content[r][c] == ')'
 				|| content[r][c] == '[' || content[r][c] == ']'
 				|| content[r][c] == '{' || content[r][c] == '}')
 			{
-				color[r][c] = 0x0e;
+				color[r][c] = Color_Bracket;
 			}
-			else if(content[r][c] >= '0' && content[r][c] <= '9')
+		}
+	}
+	//数字着色
+	for(r=0; r<numberOfRow; r++)
+	{
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(content[r][c] >= '0' && content[r][c] <= '9')
 			{
-				color[r][c] = 0x0f;
+				if(c > 0 && ((content[r][c-1] >= 'A' && content[r][c-1] <= 'Z')
+					|| (content[r][c-1] >= 'a' && content[r][c-1] <= 'z')
+					|| content[r][c-1] == '_'));
+				else//数字前面不是字母或下划线
+				{
+					color[r][c] = Color_Number;
+				}
+			}
+			if(content[r][c] == '.' && c > 0 && c+1 < numberOfColumn[r])//小数点
+			{
+				if(content[r][c-1] >= '0' && content[r][c-1] <= '9'
+					&& content[r][c+1] >= '0' && content[r][c+1] <= '9')
+				{
+					color[r][c] = Color_Number;
+				}
+			}
+			if(content[r][c] == '0' && c+1 < numberOfColumn[r] && content[r][c+1] == 'x')//十六进制数
+			{
+				if(c+2 < numberOfColumn[r])
+				{
+					if((content[r][c+2] >= '0' && content[r][c+2] <= '9')
+						|| (content[r][c+2] >= 'A' && content[r][c+2] <= 'F')
+						|| (content[r][c+2] >= 'a' && content[r][c+2] <= 'f'))
+					{
+						color[r][c+1] = Color_Number;
+						for(c+=2; c<numberOfColumn[r]; c++)
+						{
+							if((content[r][c] >= '0' && content[r][c] <= '9')
+								|| (content[r][c] >= 'A' && content[r][c] <= 'F')
+								|| (content[r][c] >= 'a' && content[r][c] <= 'f'))
+							{
+								color[r][c] = Color_Number;
+							}
+							else
+							{
+								break;
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -107,40 +210,9 @@ void AnalysisColor()
 			for(c=0; c<numberOfColumn[r]; c++)
 			{
 				if(content[r][c] == '<') break;
-				color[r][c] = 0x0d;
+				color[r][c] = Color_Preprocessor;
 			}
 		}//行首为#且在<前的内容
-	}
-	//字符和字符串着色
-	for(r=0; r<numberOfRow; r++)
-	{
-		characterStart = 0;
-		for(c=0; c<numberOfColumn[r]; c++)
-		{
-			if(content[r][c] == '"' && characterStart == 1) characterStart = 0;
-			if(characterStart == 1)
-			{
-				color[r][c] = 0x0a;
-			}
-			if(content[r][c] == '\'')
-			{
-				characterStart = 1-characterStart;
-				color[r][c] = 0x0a;
-			}
-		}//字符为’后内容，遇到'或"则停止
-		stringStart = 0;
-		for(c=0; c<numberOfColumn[r]; c++)
-		{
-			if(stringStart == 1)
-			{
-				color[r][c] = 0x06;
-			}
-			if(content[r][c] == '"')
-			{
-				stringStart = 1-stringStart;
-				color[r][c] = 0x06;
-			}
-		}//字符串为"后的内容，再次遇到"停止，字符串覆盖字符
 	}
 	//注释着色
 	commentStart = 0;
@@ -154,12 +226,12 @@ void AnalysisColor()
 			}
 			if(commentStart == 1)
 			{
-				color[r][c] = 0x02;
+				color[r][c] = Color_Comment;
 			}
 			if(content[r][c] == '*' && content[r][c+1] == '/')
 			{
 				commentStart = 0;
-				color[r][c+1] = 0x02;
+				color[r][c+1] = Color_Comment;
 			}
 		}
 		for(c=0; c<numberOfColumn[r]-1; c++)
@@ -168,22 +240,77 @@ void AnalysisColor()
 			{
 				for(; c<numberOfColumn[r]; c++)
 				{
-					color[r][c] = 0x02;
+					color[r][c] = Color_Comment;
+				}
+			}
+		}
+	}
+	//字符和字符串着色
+	for(r=0; r<numberOfRow; r++)
+	{
+		/*characterStart = 0;
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(content[r][c] == '"' && characterStart == 1) characterStart = 0;
+			if(characterStart == 1)
+			{
+				color[r][c] = Color_Character;
+			}
+			if(content[r][c] == '\'')
+			{
+				characterStart = 1-characterStart;
+				color[r][c] = Color_Character;
+			}
+		}//字符为’后内容，遇到'或"则停止
+		stringStart = 0;
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(stringStart == 1)
+			{
+				color[r][c] = Color_String;
+			}
+			if(content[r][c] == '"')
+			{
+				stringStart = 1-stringStart;
+				color[r][c] = Color_String;
+			}
+		}//字符串为"后的内容，再次遇到"停止，字符串覆盖字符*/
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(content[r][c] == '\'')
+			{
+				end = FindMatch(r, c, '\'');
+				if(end != -1)
+				{
+					DrawColorInRange(r, c, r, end, Color_Character);
+					c = end;
+				}
+			}
+		}
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(content[r][c] == '"')
+			{
+				end = FindMatch(r, c, '"');
+				if(end != -1)
+				{
+					DrawColorInRange(r, c, r, end, Color_String);
+					c = end;
 				}
 			}
 		}
 	}
 	//剩余内容均视为变量
-	for(r=0; r<numberOfRow; r++)
+	/*for(r=0; r<numberOfRow; r++)
 	{
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
-			if(color[r][c] == 0x07)
+			if(color[r][c] == Color_Default)
 			{
-				color[r][c] = 0x0b;
+				color[r][c] = Color_Variable;
 			}
 		}
-	}
+	}*/
 }
 
 void PrintContent()
@@ -216,7 +343,7 @@ void ReadContent(char* fileName)
 	FILE* file;
 	char ch;
 	int r, c;
-	int cn = 0;
+	//int cn = 0;
 	if(file = fopen(fileName, "r"))
 	{
 		//printf("[Opened]File %s:\n", fileName);
@@ -234,7 +361,8 @@ void ReadContent(char* fileName)
 		}
 		rewind(file);*/
 		//分析行数
-		numberOfRow = 1;//EOF也有一行
+		//numberOfRow = 1;//EOF也有一行
+		numberOfRow = 0;
 		while(1)
 		{
 			ch = fgetc(file);
@@ -288,7 +416,9 @@ int main()
 {
 	char* fileName = InputFileName();
 	ReadContent(fileName);
+	//ReadContent("Text Editer 0.2.c");
 	AnalysisColor();
+	system("chcp 65001");//以UTF-8编码显示
 	while(1)
 	{
 		system("cls");
