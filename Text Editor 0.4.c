@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <conio.h>
 #include <windows.h>
 
 #define MaxFileName 128
@@ -8,6 +9,7 @@ char** content;
 int** color;
 int numberOfRow;
 int* numberOfColumn;
+int cursorR = 0, cursorC = 0;
 
 enum Color {
 	//高区分配色
@@ -36,6 +38,11 @@ enum Color {
 	Color_Variable = 0x0b
 };
 
+void gotoxy(short int x, short int y)
+{
+	COORD coord = {x, y};
+	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
 void ColorChar(char c, int color)//输出彩色字符
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
@@ -396,29 +403,41 @@ void AnalysisColor()
 	}
 }
 
+void PrintContentR(int r)
+{
+	int c;
+	printf("\r");
+	//printf("%3d ", r);
+	for(c=0; c<numberOfColumn[r]; c++)
+	{
+		if(content[r][c] == '\n')
+		{
+			printf(" ");//删除时抹去尾部
+		}
+		if(content[r][c] == '\t')
+		{
+			//printf("    ");
+			ColorChar(':', Color_Bracket);
+			printf("   ");
+		}
+		/*else if((r+1)%4 == 0 && content[r][c] == ' ')
+		{
+			printf("|");
+		}*/
+		else
+		{
+			//putchar(content[r][c]);
+			ColorChar(content[r][c], color[r][c]);
+		}
+	}
+}
+
 void PrintContent()
 {
 	int r, c;
 	for(r=0; r<numberOfRow; r++)
 	{
-		for(c=0; c<numberOfColumn[r]; c++)
-		{
-			if(content[r][c] == '\t')
-			{
-				//printf("    ");
-				ColorChar(':', Color_Bracket);
-				printf("   ");
-			}
-			/*else if((r+1)%4 == 0 && content[r][c] == ' ')
-			{
-				printf("|");
-			}*/
-			else
-			{
-				//putchar(content[r][c]);
-				ColorChar(content[r][c], color[r][c]);
-			}
-		}
+		PrintContentR(r);
 	}
 }
 
@@ -428,7 +447,7 @@ void ReadContent(char* fileName)
 	char ch;
 	int r, c;
 	//int cn = 0;
-	if(file = fopen(fileName, "r"))
+	if((file = fopen(fileName, "r")))
 	{
 		//printf("[Opened]File %s:\n", fileName);
 		/*while(1)//调试
@@ -510,24 +529,214 @@ void WriteContent(char* fileName)
 	fclose(file);
 }
 
+void CheckGlobalPointer()
+{
+	int r;
+	//system("cls");
+	printf("numberOfRow=%d\n", numberOfRow);
+	printf("numberOfColumn=0x%x\n", numberOfColumn);
+	printf("content=0x%x\n", content);
+	for(r=0; r<numberOfRow; r++)
+	{
+		printf("content[%d]=0x%x\n", r, content[r]);
+	}
+	/*printf("color=0x%x\n", color);
+	for(r=0; r<numberOfRow; r++)
+	{
+		printf("color[%d]=0x%x\n", r, color[r]);
+	}*/
+	system("pause");
+}
+
+void EditContent()
+{
+	char operation;
+	int r, c;
+	char* newLine;
+	char** newContent;
+	int* newNumberOfColumn;
+	gotoxy(cursorC, cursorR);
+	while(1)//简单的WASD光标移动
+	{
+		while(!kbhit()) Sleep(100);
+		operation = getch();
+		if(operation == 'W')
+		{
+			if(cursorR > 0) cursorR--;
+			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+		}
+		else if(operation == 'A')
+		{
+			if(cursorC > 0) cursorC--;
+		}
+		else if(operation == 'S')
+		{
+			if(cursorR < numberOfRow-1) cursorR++;
+			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+		}
+		else if(operation == 'D')
+		{
+			if(cursorC < numberOfColumn[cursorR]-1) cursorC++;//列最大为换行符位置
+		}
+		else
+		{
+			break;
+		}
+		gotoxy(cursorC, cursorR);
+	}
+	if(operation == '\b')
+	{
+		if(cursorC != 0)//删除前一个字符
+		{
+			newLine =(char*) calloc(numberOfColumn[cursorR]-1, sizeof(char));
+			for(c=0; c<cursorC-1; c++)
+			{
+				newLine[c] = content[cursorR][c];
+			}
+			for(c=cursorC-1; c<numberOfColumn[cursorR]-1; c++)
+			{
+				newLine[c] = content[cursorR][c+1];
+			}
+			free(content[cursorR]);
+			content[cursorR] = newLine;
+			cursorC--;
+			numberOfColumn[cursorR]--;
+		}
+		else if(cursorR != 0)//删除换行，合并两行
+		{
+			//合并cursorR-1和cursorR行
+			newLine =(char*) calloc(numberOfColumn[cursorR-1]-1+numberOfColumn[cursorR], sizeof(char));
+			for(c=0; c<numberOfColumn[cursorR-1]-1; c++)//去除换行符
+			{
+				newLine[c] = content[cursorR-1][c];
+			}
+			for(c=0; c<numberOfColumn[cursorR]; c++)
+			{
+				newLine[numberOfColumn[cursorR-1]-1+c] = content[cursorR][c];
+			}
+			free(content[cursorR-1]);
+			content[cursorR-1] = newLine;
+			cursorC = numberOfColumn[cursorR-1]-1;//光标列定位
+			numberOfColumn[cursorR-1] = numberOfColumn[cursorR-1]-1+numberOfColumn[cursorR];
+			//删除cursorR行
+			free(content[cursorR]);
+			//cursorR+1行及之后前移
+			for(r=cursorR; r<numberOfRow-1; r++)
+			{
+				content[r] = content[r+1];
+				numberOfColumn[r] = numberOfColumn[r+1];
+			}
+			cursorR--;//光标行定位
+			//删除尾行空间
+			numberOfRow--;
+			newContent =(char**) calloc(numberOfRow, sizeof(char*));
+			newNumberOfColumn =(int*) calloc(numberOfRow, sizeof(int));
+			for(r=0; r<numberOfRow; r++)
+			{
+				newContent[r] = content[r];
+				newNumberOfColumn[r] = numberOfColumn[r];
+			}
+			free(content);
+			free(numberOfColumn);
+			content = newContent;
+			numberOfColumn = newNumberOfColumn;
+		}
+	}
+	else if(operation == '\r')//插入行
+	{
+		newContent =(char**) calloc(numberOfRow+1, sizeof(char*));
+		newNumberOfColumn =(int*) calloc(numberOfRow+1, sizeof(int));
+		//cursorR+1行及之后后移
+		for(r=numberOfRow; r>cursorR+1; r--)
+		{
+			newContent[r] = content[r-1];
+			newNumberOfColumn[r] = numberOfColumn[r-1];
+		}
+		//复制cursorR-1行及之前行
+		for(r=0; r<cursorR; r++)
+		{
+			newContent[r] = content[r];
+			newNumberOfColumn[r] = numberOfColumn[r];
+		}
+		//处理cursorR和cursorR+1行
+		if(cursorC == numberOfColumn[cursorR]-1)
+		{
+			newLine =(char*) calloc(1, sizeof(char));
+			newLine[0] = '\n';
+			newContent[cursorR+1] = newLine;
+			newNumberOfColumn[cursorR+1] = 1;
+			newContent[cursorR] = content[cursorR];
+			newNumberOfColumn[cursorR] = numberOfColumn[cursorR];
+		}
+		else
+		{
+			newLine =(char*) calloc(numberOfColumn[cursorR]-cursorC, sizeof(char));
+			for(c=cursorC; c<numberOfColumn[cursorR]; c++)
+			{
+				newLine[c-cursorC] = content[cursorR][c];
+			}
+			newContent[cursorR+1] = newLine;
+			newNumberOfColumn[cursorR+1] = numberOfColumn[cursorR]-cursorC;
+			//cursorC位置为换行符
+			newContent[cursorR] =(char*) calloc(cursorC+1, sizeof(char));
+			for(c=0; c<cursorC; c++)
+			{
+				newContent[cursorR][c] = content[cursorR][c];
+			}
+			free(content[cursorR]);
+			newContent[cursorR][cursorC] = '\n';
+			newNumberOfColumn[cursorR] = cursorC+1;
+		}
+		cursorR++;
+		cursorC = 0;
+		numberOfRow++;
+		//CheckGlobalPointer();
+		free(content);
+		free(numberOfColumn);
+		content = newContent;
+		numberOfColumn = newNumberOfColumn;
+	}
+	else//插入字符
+	{
+		newLine =(char*) calloc(numberOfColumn[cursorR]+1, sizeof(char));
+		for(c=numberOfColumn[cursorR]; c>cursorC; c--)
+		{
+			newLine[c] = content[cursorR][c-1];
+		}
+		newLine[cursorC] = operation;
+		for(c=cursorC-1; c>=0; c--)
+		{
+			newLine[c] = content[cursorR][c];
+		}
+		free(content[cursorR]);
+		content[cursorR] = newLine;
+		cursorC++;
+		numberOfColumn[cursorR]++;
+	}
+	gotoxy(cursorC, cursorR);
+}
+
 int main()
 {
 	char* fileName = InputFileName();
-	//char* fileName = "Text Editer.c";
+	//char* fileName = "Text Editor.c";
 	int r;
 	ReadContent(fileName);
 	system("chcp 65001");//以UTF-8编码显示
+	AnalysisColor();
+	system("cls");
+	PrintContent();
 	while(1)
 	{
-		AnalysisColor();
-		system("cls");
-		PrintContent();
-		getchar();
 		for(r=0; r<numberOfRow; r++)
 		{
 			free(color[r]);
 		}
 		free(color);
+		EditContent();
+		//getchar();
+		AnalysisColor();
+		PrintContentR(cursorR);//仅重绘当前行
 	}
 	WriteContent(fileName);
 	return 0;
@@ -547,4 +756,11 @@ Text Editer 0.3
 ——新增 缩进提示线显示
 ——新增 初步区分函数和变量
 ——优化 更准确的判断'\''和'\\'
+Text Editor 0.4
+——新增 简单的WASD光标移动
+——新增 插入和删除字符
+——新增 插入和删除换行
+——优化 刷新时仅重绘当前行
+——修复 更改程序名称为Text Editor
+//——修复 插入换行时可能闪退
 --------------------------------*/
