@@ -403,18 +403,31 @@ void AnalysisColor()
 	}
 }
 
+int TabBefore(int r, int c1)
+{
+	int c, num = 0;
+	for(c=0; c<c1; c++)
+	{
+		if(content[r][c] == '\t')
+		{
+			num++;
+		}
+	}
+	return num;
+}
+
 void PrintContentR(int r)
 {
 	int c;
-	printf("\r");
+	gotoxy(0, r);
 	//printf("%3d ", r);
 	for(c=0; c<numberOfColumn[r]; c++)
 	{
 		if(content[r][c] == '\n')
 		{
-			printf(" ");//删除时抹去尾部
+			printf(" \n");//删除时抹去尾部
 		}
-		if(content[r][c] == '\t')
+		else if(content[r][c] == '\t')
 		{
 			//printf("    ");
 			ColorChar(':', Color_Bracket);
@@ -435,10 +448,25 @@ void PrintContentR(int r)
 void PrintContent()
 {
 	int r, c;
+	system("cls");
 	for(r=0; r<numberOfRow; r++)
 	{
 		PrintContentR(r);
 	}
+	/*printf("\n");
+	for(r=0; r<numberOfRow; r++)
+	{
+		printf("%2d(%2d) ", r, numberOfColumn[r]);
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(content[r][c] == EOF) printf("[EOF]");
+			else if(content[r][c] == '\n') printf("[\\n]");
+			else if(content[r][c] == '\r') printf("[\\r]");
+			else putchar(content[r][c]);
+		}
+		printf("\n");
+	}*/
+	//getchar();
 }
 
 void ReadContent(char* fileName)
@@ -447,6 +475,7 @@ void ReadContent(char* fileName)
 	char ch;
 	int r, c;
 	//int cn = 0;
+	numberOfRow = 0;
 	if((file = fopen(fileName, "r")))
 	{
 		//printf("[Opened]File %s:\n", fileName);
@@ -464,8 +493,7 @@ void ReadContent(char* fileName)
 		}
 		rewind(file);*/
 		//分析行数
-		//numberOfRow = 1;//EOF也有一行
-		numberOfRow = 0;
+		numberOfRow = 1;//EOF也有一行
 		while(1)
 		{
 			ch = fgetc(file);
@@ -506,11 +534,34 @@ void ReadContent(char* fileName)
 			if(ch == EOF) break;
 		}
 		//输出缓存
-		//PrintContent();
+		/*printf("\n");
+		for(r=0; r<numberOfRow; r++)
+		{
+			printf("%2d(%2d) ", r, numberOfColumn[r]);
+			for(c=0; c<numberOfColumn[r]; c++)
+			{
+				if(content[r][c] == EOF) printf("[文件尾]");
+				else if(content[r][c] == '\n') printf("[换行]");
+				else if(content[r][c] == '\r') printf("[回车]");
+				else putchar(content[r][c]);
+			}
+			printf("\n");
+		}
+		getchar();*/
 	}
 	else
 	{
 		printf("[Error]Can't find file %s\n", fileName);
+		file = fopen(fileName, "w");//新建该文件
+	}
+	if(numberOfRow == 0)
+	{
+		numberOfRow = 1;
+		content =(char**) calloc(numberOfRow, sizeof(char*));
+		numberOfColumn =(int*) calloc(numberOfRow, sizeof(int));
+		content[0] =(char*) calloc(1, sizeof(char));
+		content[0][0] = '\n';
+		numberOfColumn[0] = 1;
 	}
 	fclose(file);
 }
@@ -528,7 +579,7 @@ void WriteContent(char* fileName)
 	}
 	fclose(file);
 }
-
+/*
 void CheckGlobalPointer()
 {
 	int r;
@@ -540,27 +591,62 @@ void CheckGlobalPointer()
 	{
 		printf("content[%d]=0x%x\n", r, content[r]);
 	}
-	/*printf("color=0x%x\n", color);
+	printf("color=0x%x\n", color);
 	for(r=0; r<numberOfRow; r++)
 	{
 		printf("color[%d]=0x%x\n", r, color[r]);
-	}*/
+	}
 	system("pause");
 }
-
-void EditContent()
+*/
+int EditContent()
 {
 	char operation;
 	int r, c;
 	char* newLine;
 	char** newContent;
 	int* newNumberOfColumn;
-	gotoxy(cursorC, cursorR);
-	while(1)//简单的WASD光标移动
+	/*HANDLE hdin = GetStdHandle(STD_INPUT_HANDLE);
+	COORD mousePos = {0, 0};
+	INPUT_RECORD rcd;
+	DWORD rcdnum;
+	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS);
+	while(1)
 	{
+		gotoxy(cursorC+3*TabBefore(cursorR, cursorC), cursorR);
+		ReadConsoleInput(hdin, &rcd, 1, &rcdnum);
+		if(rcd.EventType == MOUSE_EVENT && rcd.Event.MouseEvent.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
+		{
+			mousePos = rcd.Event.MouseEvent.dwMousePosition;
+			cursorR = mousePos.Y;
+			cursorC = mousePos.X-3*TabBefore(cursorR, mousePos.X);
+			while(cursorC+3*TabBefore(cursorR, cursorC) < mousePos.X) cursorC++;
+			if(cursorR > numberOfRow-1) cursorR = numberOfRow-1;
+			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+		}
+		else if(rcd.EventType == KEY_EVENT && rcd.Event.KeyEvent.bKeyDown == 1)
+		{
+			operation = rcd.Event.KeyEvent.wVirtualKeyCode;
+			if(operation >= 'A' && operation <= 'Z') operation = operation-'A'+'a';
+			else if(operation >= 'a' && operation <= 'i') operation = operation-'a'+'1';
+			else if(operation == '`') operation = '0';
+			else if(operation == 'n') operation = '.';
+			else if(operation == 'k') operation = '+';
+			else if(operation == 'm') operation = '-';
+			else if(operation == 'j') operation = '*';
+			else if(operation == 'o') operation = '/';
+			if(GetKeyState(VK_SHIFT) < 0 && operation >= 'a' && operation <= 'z') operation = operation-'a'+'A';
+			operation = getch();
+			break;
+		}
+		Sleep(100);
+	}*/
+	while(1)
+	{
+		gotoxy(cursorC+3*TabBefore(cursorR, cursorC), cursorR);
 		while(!kbhit()) Sleep(100);
 		operation = getch();
-		if(operation == 'W')
+		if(operation == 'W')//简单的WASD光标移动
 		{
 			if(cursorR > 0) cursorR--;
 			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
@@ -582,7 +668,6 @@ void EditContent()
 		{
 			break;
 		}
-		gotoxy(cursorC, cursorR);
 	}
 	if(operation == '\b')
 	{
@@ -640,7 +725,9 @@ void EditContent()
 			free(numberOfColumn);
 			content = newContent;
 			numberOfColumn = newNumberOfColumn;
+			return 1;
 		}
+		return 0;
 	}
 	else if(operation == '\r')//插入行
 	{
@@ -695,6 +782,7 @@ void EditContent()
 		free(numberOfColumn);
 		content = newContent;
 		numberOfColumn = newNumberOfColumn;
+		return 1;
 	}
 	else//插入字符
 	{
@@ -712,19 +800,18 @@ void EditContent()
 		content[cursorR] = newLine;
 		cursorC++;
 		numberOfColumn[cursorR]++;
+		return 0;
 	}
-	gotoxy(cursorC, cursorR);
 }
 
 int main()
 {
 	char* fileName = InputFileName();
 	//char* fileName = "Text Editor.c";
-	int r;
+	int r, f;
 	ReadContent(fileName);
 	system("chcp 65001");//以UTF-8编码显示
 	AnalysisColor();
-	system("cls");
 	PrintContent();
 	while(1)
 	{
@@ -733,10 +820,11 @@ int main()
 			free(color[r]);
 		}
 		free(color);
-		EditContent();
+		f = EditContent();
 		//getchar();
 		AnalysisColor();
-		PrintContentR(cursorR);//仅重绘当前行
+		if(f == 0) PrintContentR(cursorR);//仅重绘当前行
+		else PrintContent();
 	}
 	WriteContent(fileName);
 	return 0;
@@ -762,5 +850,10 @@ Text Editor 0.4
 ——新增 插入和删除换行
 ——优化 刷新时仅重绘当前行
 ——修复 更改程序名称为Text Editor
-//——修复 插入换行时可能闪退
+Text Editor 0.5
+——新增 新建不存在的文件
+——新增 读取到0行文件时，新建1行
+——优化 前有\t的光标位置显示
+——优化 插入和删除换行时重绘全部
+——修复 插入和删除换行时可能闪退
 --------------------------------*/
