@@ -141,8 +141,7 @@ int FindReservedWord(int r1, int c1)
 
 void AnalysisColor()
 {
-	int r, c, commentStart/*, characterStart, stringStart*/;
-	int end;
+	int r, c, end, commentStart;
 	color =(int**) calloc(numberOfRow, sizeof(int*));
 	//符号着色
 	for(r=0; r<numberOfRow; r++)
@@ -294,33 +293,6 @@ void AnalysisColor()
 	//字符和字符串着色
 	for(r=0; r<numberOfRow; r++)
 	{
-		/*characterStart = 0;
-		for(c=0; c<numberOfColumn[r]; c++)
-		{
-			if(content[r][c] == '"' && characterStart == 1) characterStart = 0;
-			if(characterStart == 1)
-			{
-				color[r][c] = Color_Character;
-			}
-			if(content[r][c] == '\'')
-			{
-				characterStart = 1-characterStart;
-				color[r][c] = Color_Character;
-			}
-		}//字符为’后内容，遇到'或"则停止
-		stringStart = 0;
-		for(c=0; c<numberOfColumn[r]; c++)
-		{
-			if(stringStart == 1)
-			{
-				color[r][c] = Color_String;
-			}
-			if(content[r][c] == '"')
-			{
-				stringStart = 1-stringStart;
-				color[r][c] = Color_String;
-			}
-		}//字符串为"后的内容，再次遇到"停止，字符串覆盖字符*/
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
 			if(content[r][c] == '\'')
@@ -416,18 +388,34 @@ int TabBefore(int r, int c1)
 	return num;
 }
 
+int Place(int n)//计算某数所占位数
+{
+	int i = 0;
+	if(n == 0) return 1;
+	while(n > 0)
+	{
+		i++;
+		n /= 10;
+	}
+	return i;
+}
+
 void PrintContentR(int r)
 {
 	int c;
 	gotoxy(0, r);
-	//printf("%3d ", r);
+	for(c=0; c<Place(numberOfRow)-Place(r); c++)
+	{
+		printf(" ");
+	}
+	printf("%d ", r);
 	for(c=0; c<numberOfColumn[r]; c++)
 	{
-		if(content[r][c] == '\n')
+		if(c == numberOfColumn[r]-1)
 		{
-			printf(" \n");//删除时抹去尾部
+			printf(" \b");//删除时抹去尾部
 		}
-		else if(content[r][c] == '\t')
+		if(content[r][c] == '\t')
 		{
 			//printf("    ");
 			ColorChar(':', Color_Bracket);
@@ -453,20 +441,6 @@ void PrintContent()
 	{
 		PrintContentR(r);
 	}
-	/*printf("\n");
-	for(r=0; r<numberOfRow; r++)
-	{
-		printf("%2d(%2d) ", r, numberOfColumn[r]);
-		for(c=0; c<numberOfColumn[r]; c++)
-		{
-			if(content[r][c] == EOF) printf("[EOF]");
-			else if(content[r][c] == '\n') printf("[\\n]");
-			else if(content[r][c] == '\r') printf("[\\r]");
-			else putchar(content[r][c]);
-		}
-		printf("\n");
-	}*/
-	//getchar();
 }
 
 void ReadContent(char* fileName)
@@ -540,9 +514,9 @@ void ReadContent(char* fileName)
 			printf("%2d(%2d) ", r, numberOfColumn[r]);
 			for(c=0; c<numberOfColumn[r]; c++)
 			{
-				if(content[r][c] == EOF) printf("[文件尾]");
-				else if(content[r][c] == '\n') printf("[换行]");
-				else if(content[r][c] == '\r') printf("[回车]");
+				if(content[r][c] == EOF) printf("[EOF]");
+				else if(content[r][c] == '\n') printf("[\\n]");
+				else if(content[r][c] == '\r') printf("[\\r]");
 				else putchar(content[r][c]);
 			}
 			printf("\n");
@@ -579,96 +553,13 @@ void WriteContent(char* fileName)
 	}
 	fclose(file);
 }
-/*
-void CheckGlobalPointer()
+
+int Operate(char operation)
 {
-	int r;
-	//system("cls");
-	printf("numberOfRow=%d\n", numberOfRow);
-	printf("numberOfColumn=0x%x\n", numberOfColumn);
-	printf("content=0x%x\n", content);
-	for(r=0; r<numberOfRow; r++)
-	{
-		printf("content[%d]=0x%x\n", r, content[r]);
-	}
-	printf("color=0x%x\n", color);
-	for(r=0; r<numberOfRow; r++)
-	{
-		printf("color[%d]=0x%x\n", r, color[r]);
-	}
-	system("pause");
-}
-*/
-int EditContent()
-{
-	char operation;
 	int r, c;
 	char* newLine;
 	char** newContent;
 	int* newNumberOfColumn;
-	/*HANDLE hdin = GetStdHandle(STD_INPUT_HANDLE);
-	COORD mousePos = {0, 0};
-	INPUT_RECORD rcd;
-	DWORD rcdnum;
-	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS);
-	while(1)
-	{
-		gotoxy(cursorC+3*TabBefore(cursorR, cursorC), cursorR);
-		ReadConsoleInput(hdin, &rcd, 1, &rcdnum);
-		if(rcd.EventType == MOUSE_EVENT && rcd.Event.MouseEvent.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
-		{
-			mousePos = rcd.Event.MouseEvent.dwMousePosition;
-			cursorR = mousePos.Y;
-			cursorC = mousePos.X-3*TabBefore(cursorR, mousePos.X);
-			while(cursorC+3*TabBefore(cursorR, cursorC) < mousePos.X) cursorC++;
-			if(cursorR > numberOfRow-1) cursorR = numberOfRow-1;
-			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
-		}
-		else if(rcd.EventType == KEY_EVENT && rcd.Event.KeyEvent.bKeyDown == 1)
-		{
-			operation = rcd.Event.KeyEvent.wVirtualKeyCode;
-			if(operation >= 'A' && operation <= 'Z') operation = operation-'A'+'a';
-			else if(operation >= 'a' && operation <= 'i') operation = operation-'a'+'1';
-			else if(operation == '`') operation = '0';
-			else if(operation == 'n') operation = '.';
-			else if(operation == 'k') operation = '+';
-			else if(operation == 'm') operation = '-';
-			else if(operation == 'j') operation = '*';
-			else if(operation == 'o') operation = '/';
-			if(GetKeyState(VK_SHIFT) < 0 && operation >= 'a' && operation <= 'z') operation = operation-'a'+'A';
-			operation = getch();
-			break;
-		}
-		Sleep(100);
-	}*/
-	while(1)
-	{
-		gotoxy(cursorC+3*TabBefore(cursorR, cursorC), cursorR);
-		while(!kbhit()) Sleep(100);
-		operation = getch();
-		if(operation == 'W')//简单的WASD光标移动
-		{
-			if(cursorR > 0) cursorR--;
-			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
-		}
-		else if(operation == 'A')
-		{
-			if(cursorC > 0) cursorC--;
-		}
-		else if(operation == 'S')
-		{
-			if(cursorR < numberOfRow-1) cursorR++;
-			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
-		}
-		else if(operation == 'D')
-		{
-			if(cursorC < numberOfColumn[cursorR]-1) cursorC++;//列最大为换行符位置
-		}
-		else
-		{
-			break;
-		}
-	}
 	if(operation == '\b')
 	{
 		if(cursorC != 0)//删除前一个字符
@@ -804,6 +695,202 @@ int EditContent()
 	}
 }
 
+int EditContent()
+{
+	int operation, r, c, tab;
+	HANDLE hdin = GetStdHandle(STD_INPUT_HANDLE);
+	COORD mousePos = {0, 0};
+	INPUT_RECORD rcd;
+	DWORD rcdnum;
+	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS);
+	gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
+	while(1)
+	{
+		ReadConsoleInput(hdin, &rcd, 1, &rcdnum);
+		if(rcd.EventType == MOUSE_EVENT && rcd.Event.MouseEvent.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
+		{
+			mousePos = rcd.Event.MouseEvent.dwMousePosition;
+			cursorR = mousePos.Y;
+			if(cursorR > numberOfRow-1) cursorR = numberOfRow-1;
+			cursorC = mousePos.X-3*TabBefore(cursorR, mousePos.X)-Place(numberOfRow)-1;
+			while(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1 < mousePos.X) cursorC++;
+			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+			gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
+		}
+		else if(rcd.EventType == KEY_EVENT && rcd.Event.KeyEvent.bKeyDown == 1)
+		{
+			operation = rcd.Event.KeyEvent.wVirtualKeyCode;
+			if(operation == VK_UP || operation == VK_LEFT || operation == VK_DOWN || operation == VK_RIGHT)
+			{
+				if(operation == VK_UP)
+				{
+					if(cursorR > 0) cursorR--;
+					if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+				}
+				else if(operation == VK_LEFT)
+				{
+					if(cursorC > 0) cursorC--;
+				}
+				else if(operation == VK_DOWN)
+				{
+					if(cursorR < numberOfRow-1) cursorR++;
+					if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+				}
+				else if(operation == VK_RIGHT)
+				{
+					if(cursorC < numberOfColumn[cursorR]-1) cursorC++;//列最大为换行符位置
+				}
+				gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
+				continue;
+			}
+			if(GetKeyState(VK_CONTROL) < 0)
+			{
+				if(operation == 'S')
+				{
+					SetConsoleMode(hdin, ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT
+						| ENABLE_MOUSE_INPUT | ENABLE_INSERT_MODE | ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS
+						| ENABLE_AUTO_POSITION);
+					WriteContent(InputFileName());
+					printf("[Saved!]");
+					continue;
+				}
+			}
+			if(operation >= 'A' && operation <= 'Z') operation = operation-'A'+'a';
+			else if(operation >= 'a' && operation <= 'i') operation = operation-'a'+'1';
+			else if(operation == '`') operation = '0';
+			else if(operation == 'n') operation = '.';
+			else if(operation == 'k') operation = '+';
+			else if(operation == 'm') operation = '-';
+			else if(operation == 'j') operation = '*';
+			else if(operation == 'o') operation = '/';
+			else if(operation == VK_OEM_MINUS) operation = '-';
+			else if(operation == VK_OEM_PLUS) operation = '=';
+			else if(operation == VK_OEM_4) operation = '[';
+			else if(operation == VK_OEM_6) operation = ']';
+			else if(operation == VK_OEM_5) operation = '\\';
+			else if(operation == VK_OEM_1) operation = ';';
+			else if(operation == VK_OEM_7) operation = '\'';
+			else if(operation == VK_OEM_COMMA) operation = ',';
+			else if(operation == VK_OEM_PERIOD) operation = '.';
+			else if(operation == VK_OEM_2) operation = '/';
+			else if(operation == VK_OEM_3) operation = '`';
+			if(GetKeyState(VK_SHIFT) < 0)//Shift键转换
+			{
+				if(operation >= 'a' && operation <= 'z')
+				{
+					operation = operation-'a'+'A';
+				}
+				else if(operation == '1') operation = '!';
+				else if(operation == '2') operation = '@';
+				else if(operation == '3') operation = '#';
+				else if(operation == '4') operation = '$';
+				else if(operation == '5') operation = '%';
+				else if(operation == '6') operation = '^';
+				else if(operation == '7') operation = '&';
+				else if(operation == '8') operation = '*';
+				else if(operation == '9') operation = '(';
+				else if(operation == '0') operation = ')';
+				else if(operation == '-') operation = '_';
+				else if(operation == '=') operation = '+';
+				else if(operation == '[') operation = '{';
+				else if(operation == ']') operation = '}';
+				else if(operation == '\\') operation = '|';
+				else if(operation == ';') operation = ':';
+				else if(operation == '\'') operation = '"';
+				else if(operation == ',') operation = '<';
+				else if(operation == '.') operation = '>';
+				else if(operation == '/') operation = '?';
+				else if(operation == '`') operation = '~';
+			}
+			if(operation == '\b' || operation == '\r' || operation == '\t'
+				|| (operation >= 32 && operation < 128))
+			{
+				break;
+			}
+			else if(operation != VK_SHIFT)
+			{
+				//printf("[UnknownKey0x%x]", operation);
+			}
+		}
+		Sleep(100);
+	}
+	if(operation == '\r')
+	{
+		if(cursorC > 0 && content[cursorR][cursorC-1] == '{' && content[cursorR][cursorC] == '}')
+		{
+			tab = TabBefore(cursorR, cursorC);
+			Operate('\r');
+			Operate('\r');
+			for(c=0; c<tab; c++)
+			{
+				Operate('\t');
+			}
+			cursorR--;
+			cursorC = 0;
+			for(c=0; c<tab+1; c++)
+			{
+				Operate('\t');
+			}
+			return 1;
+		}
+		if(content[cursorR][0] == '\t')
+		{
+			tab = TabBefore(cursorR, cursorC);
+			Operate('\r');
+			for(c=0; c<tab; c++)
+			{
+				Operate('\t');
+			}
+			return 1;
+		}
+	}
+	if(operation == '(' && content[cursorR][cursorC] != ')')
+	{
+		Operate(')');
+		cursorC--;
+	}
+	else if(operation == '[' && content[cursorR][cursorC] != ']')
+	{
+		Operate(']');
+		cursorC--;
+	}
+	else if(operation == '{' && content[cursorR][cursorC] != '}')
+	{
+		Operate('}');
+		cursorC--;
+	}
+	else if(operation == '\'' && content[cursorR][cursorC] != '\'')
+	{
+		Operate('\'');
+		cursorC--;
+	}
+	else if(operation == '"' && content[cursorR][cursorC] != '"')
+	{
+		Operate('"');
+		cursorC--;
+	}
+	else if(operation == '<' && content[cursorR][cursorC] != '>' && content[cursorR][0] == '#')
+	{
+		Operate('>');
+		cursorC--;
+	}
+	else if(operation == '\b' && cursorC > 0)
+	{
+		if((content[cursorR][cursorC-1] == '(' && content[cursorR][cursorC] == ')')
+			|| (content[cursorR][cursorC-1] == '[' && content[cursorR][cursorC] == ']')
+			|| (content[cursorR][cursorC-1] == '{' && content[cursorR][cursorC] == '}')
+			|| (content[cursorR][cursorC-1] == '\'' && content[cursorR][cursorC] == '\'')
+			|| (content[cursorR][cursorC-1] == '"' && content[cursorR][cursorC] == '"')
+			|| (content[cursorR][cursorC-1] == '<' && content[cursorR][cursorC] == '>' && content[cursorR][0] == '#'))
+		{
+			cursorC++;
+			Operate('\b');
+			PrintContentR(cursorR);//多执行一次尾部抹除
+		}
+	}
+	return Operate(operation);
+}
+
 int main()
 {
 	char* fileName = InputFileName();
@@ -856,4 +943,16 @@ Text Editor 0.5
 ——优化 前有\t的光标位置显示
 ——优化 插入和删除换行时重绘全部
 ——修复 插入和删除换行时可能闪退
+Text Editor 0.6
+——新增 鼠标定位光标
+——新增 插入换行时自动保持\t数与当前行一致
+——新增 在{}间插入换行时自动保持}前\t数与{前一致
+——新增 在{}间插入换行时自动多插入\t数为{前\t数+1的行并定位光标
+——新增 插入([{'"时，如果插入位置不为匹配符号，则自动插入并左移光标
+——新增 插入<时，如果插入位置不为>且行首为#，则自动插入>并左移光标
+——新增 删除([{'"<时，自动删除其右侧的匹配符号
+——新增 Ctrl+S保存文件
+——新增 从0开始的行号
+——优化 WASD光标移动改为方向键
+——修复 新行退格不会抹去尾部
 --------------------------------*/
