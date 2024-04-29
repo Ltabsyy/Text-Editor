@@ -13,40 +13,98 @@ int cursorR = 0, cursorC = 0;
 
 enum Color {
 	//高区分配色
-	/*Color_Default = 0x07,
-	Color_Comment = 0x02,
-	Color_Symbol = 0x0c,
-	Color_Bracket = 0x0c,//ced9
-	Color_Number = 0x0f,
-	Color_Preprocessor = 0x0d,
-	Color_Character = 0x0a,
-	Color_String = 0x06,
-	Color_ReservedWord = 0x05,
-	Color_Function = 0x0e,
-	Color_Variable = 0x0b*/
+	Color_Default = 0x07,//编辑器默认
+	Color_Gutter = 0x08,//行号
+	//Color_Gutter_AL = 0x0b,//当前行号
+	Color_Comment = 0x02,//注释
+	Color_Symbol = 0x0c,//符号
+	Color_Bracket_L1 = 0x0c,//1级括号
+	Color_Bracket_L2 = 0x0e,//2级括号
+	Color_Bracket_L3 = 0x0d,//3级括号
+	Color_Bracket_L4 = 0x09,//4级括号
+	Color_Number = 0x0f,//数字
+	Color_Preprocessor = 0x0d,//预处理指令
+	Color_Character = 0x0a,//字符
+	Color_String = 0x06,//字符串
+	Color_EscapeSequences = 0x0e,//转义序列0x06
+	Color_ReservedWord = 0x05,//关键字
+	Color_Function = 0x0e,//函数
+	Color_Variable = 0x0b//变量
 	//低区分配色
-	Color_Default = 0x07,
+	/*Color_Default = 0x07,
+	Color_Gutter = 0x07,
+	Color_Gutter_AL = 0x0f,
 	Color_Comment = 0x02,
 	Color_Symbol = 0x0c,
-	Color_Bracket = 0x0c,
+	Color_Bracket_L1 = 0x0c,
+	Color_Bracket_L2 = 0x0c,
+	Color_Bracket_L3 = 0x0c,
+	Color_Bracket_L4 = 0x0c,
 	Color_Number = 0x09,
 	Color_Preprocessor = 0x0d,
 	Color_Character = 0x09,
 	Color_String = 0x09,
+	Color_EscapeSequences = 0x09,
 	Color_ReservedWord = 0x0d,
 	Color_Function = 0x0e,
-	Color_Variable = 0x0b
+	Color_Variable = 0x0b*/
+	//浅色配色
+	/*Color_Default = 0xf0,
+	Color_Gutter = 0xf0,
+	Color_Gutter_AL = 0xf1,
+	Color_Comment = 0xf8,
+	Color_Symbol = 0xf4,
+	Color_Bracket_L1 = 0xf1,
+	Color_Bracket_L2 = 0xf4,
+	Color_Bracket_L3 = 0xf1,
+	Color_Bracket_L4 = 0xf4,
+	Color_Number = 0xf1,
+	Color_Preprocessor = 0xf0,
+	Color_Character = 0xf1,
+	Color_String = 0xf1,
+	Color_EscapeSequences = 0xf4,
+	Color_ReservedWord = 0xf5,
+	Color_Function = 0xf0,
+	Color_Variable = 0xf0*/
 };
 
-void gotoxy(short int x, short int y)
+void gotoxy(short int x, short int y)//光标定位
 {
 	COORD coord = {x, y};
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
+}
+void clrscr()//清空屏幕
+{
+	HANDLE hdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	GetConsoleScreenBufferInfo(hdout, &csbi);//获取标准输出设备的屏幕缓冲区属性
+	DWORD size = csbi.dwSize.X * csbi.dwSize.Y, num = 0;//定义双字节变量
+	COORD pos = {0, 0};
+	//把窗口缓冲区全部填充为空格并填充为默认颜色
+	FillConsoleOutputCharacter(hdout, ' ', size, pos, &num);
+	FillConsoleOutputAttribute(hdout, csbi.wAttributes, size, pos, &num);
+	SetConsoleCursorPosition(hdout, pos);//光标定位到窗口左上角
+}
+void setbgcolor(int color)//设置背景颜色
+{
+	HANDLE hdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	GetConsoleScreenBufferInfo(hdout, &csbi);
+	DWORD size = csbi.dwSize.X * csbi.dwSize.Y, num = 0;
+	COORD pos = {0, 0};
+	FillConsoleOutputAttribute(hdout, color, size, pos, &num);
+	SetConsoleTextAttribute(hdout, color);
 }
 void ColorChar(char c, int color)//输出彩色字符
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 	putchar(c);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color_Default);
+}
+void ColorNumber(int number, int color)//输出彩色数字
+{
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
+	printf("%d", number);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color_Default);
 }
 
@@ -107,17 +165,20 @@ int FindMatch(int r, int c1, char ch)
 
 int FindReservedWord(int r1, int c1)
 {
-	static char* word[33] = {
+	static char* word[36] = {
+		// C语言33关键字
 		"auto", "break", "case", "char", "const",
 		"continue", "default", "do", "double", "else",
 		"enum", "extern", "float", "for", "goto",
 		"if", "inline", "int", "long", "register",
 		"return", "short", "signed", "sizeof", "static",
 		"struct", "switch", "typedef", "union", "unsigned",
-		"void", "volatile", "while"
+		"void", "volatile", "while",
+		// 常见关键字增补3
+		"bool", "false", "true"
 	};
 	int i, j;
-	for(i=0; i<33; i++)//在所有关键字中比较
+	for(i=0; i<36; i++)//在所有关键字中比较
 	{
 		for(j=0; word[i][j]!=0; j++)
 		{
@@ -142,6 +203,7 @@ int FindReservedWord(int r1, int c1)
 void AnalysisColor()
 {
 	int r, c, end, commentStart;
+	int bLevel = 0;
 	color =(int**) calloc(numberOfRow, sizeof(int*));
 	//符号着色
 	for(r=0; r<numberOfRow; r++)
@@ -193,7 +255,7 @@ void AnalysisColor()
 				|| content[r][c] == '[' || content[r][c] == ']'
 				|| content[r][c] == '{' || content[r][c] == '}')
 			{
-				color[r][c] = Color_Bracket;
+				color[r][c] = Color_Symbol;
 			}
 		}
 	}
@@ -313,7 +375,67 @@ void AnalysisColor()
 				if(end != -1)
 				{
 					DrawColorInRange(r, c, r, end, Color_String);
-					c = end;
+					//转义序列着色
+					for(c++; c<end; c++)
+					{
+						if(content[r][c] == '\\')
+						{
+							if(content[r][c+1] == '\''
+								|| content[r][c+1] == '"'
+								|| content[r][c+1] == '?'
+								|| content[r][c+1] == '\\'
+								|| content[r][c+1] == 'a'
+								|| content[r][c+1] == 'b'
+								|| content[r][c+1] == 'f'
+								|| content[r][c+1] == 'n'
+								|| content[r][c+1] == 'r'
+								|| content[r][c+1] == 't'
+								|| content[r][c+1] == 'v')
+							{
+								color[r][c] = Color_EscapeSequences;
+								color[r][c+1] = Color_EscapeSequences;
+								c++;
+							}
+							else if(content[r][c+1] >= '0' && content[r][c+1] <= 7 && c+3 < end
+								&& content[r][c+2] >= '0' && content[r][c+2] <= 7
+								&& content[r][c+3] >= '0' && content[r][c+3] <= 7)
+							{
+								color[r][c] = Color_EscapeSequences;
+								color[r][c+1] = Color_EscapeSequences;
+								color[r][c+2] = Color_EscapeSequences;
+								color[r][c+3] = Color_EscapeSequences;
+								c += 3;
+							}
+						}
+					}
+					//c = end;
+				}
+			}
+		}
+	}
+	//彩虹括号着色
+	for(r=0; r<numberOfRow; r++)
+	{
+		for(c=0; c<numberOfColumn[r]; c++)
+		{
+			if(color[r][c] == Color_Symbol)
+			{
+				if(content[r][c] == '(' || content[r][c] == ')'
+					|| content[r][c] == '[' || content[r][c] == ']'
+					|| content[r][c] == '{' || content[r][c] == '}')
+				{
+					if(content[r][c] == '(' || content[r][c] == '[' || content[r][c] == '{')
+					{
+						bLevel++;
+					}
+					if(bLevel % 4 == 0) color[r][c] = Color_Bracket_L1;
+					else if(bLevel % 4 == 1) color[r][c] = Color_Bracket_L2;//保持底层为L2
+					else if(bLevel % 4 == 2) color[r][c] = Color_Bracket_L3;
+					else if(bLevel % 4 == 3) color[r][c] = Color_Bracket_L4;
+					if(content[r][c] == ')' || content[r][c] == ']' || content[r][c] == '}')
+					{
+						bLevel--;
+					}
 				}
 			}
 		}
@@ -402,33 +524,59 @@ int Place(int n)//计算某数所占位数
 
 void PrintContentR(int r)
 {
-	int c;
+	int c, ishead = 1;
 	gotoxy(0, r);
 	for(c=0; c<Place(numberOfRow)-Place(r); c++)
 	{
-		printf(" ");
+		ColorChar(' ', Color_Gutter);
 	}
-	printf("%d ", r);
+	/*if(r == cursorR) ColorNumber(r, Color_Gutter_AL);
+	else */ColorNumber(r, Color_Gutter);
+	ColorChar(' ', Color_Gutter);
 	for(c=0; c<numberOfColumn[r]; c++)
 	{
 		if(c == numberOfColumn[r]-1)
 		{
 			printf(" \b");//删除时抹去尾部
 		}
-		if(content[r][c] == '\t')
+		if(ishead == 1 && content[r][c] != '\t' && content[r][c] != ' ') ishead = 0;
+		if(ishead == 1)
 		{
-			//printf("    ");
-			ColorChar(':', Color_Bracket);
-			printf("   ");
+			if(content[r][c] == '\t')
+			{
+				//printf("    ");
+				if(c % 4 == 0) ColorChar(':', Color_Bracket_L2);
+				else if(c % 4 == 1) ColorChar(':', Color_Bracket_L3);
+				else if(c % 4 == 2) ColorChar(':', Color_Bracket_L4);
+				else if(c % 4 == 3) ColorChar(':', Color_Bracket_L1);
+				printf("   ");
+			}
+			else if(content[r][c] == ' ')
+			{
+				if(c % 4 == 0)
+				{
+					if(c/4 % 4 == 0) ColorChar(':', Color_Bracket_L2);
+					else if(c/4 % 4 == 1) ColorChar(':', Color_Bracket_L3);
+					else if(c/4 % 4 == 2) ColorChar(':', Color_Bracket_L4);
+					else if(c/4 % 4 == 3) ColorChar(':', Color_Bracket_L1);
+				}
+				else
+				{
+					printf(" ");
+				}
+			}
 		}
-		/*else if((r+1)%4 == 0 && content[r][c] == ' ')
-		{
-			printf("|");
-		}*/
 		else
 		{
 			//putchar(content[r][c]);
-			ColorChar(content[r][c], color[r][c]);
+			if(content[r][c] == '\t')
+			{
+				printf("    ");
+			}
+			else
+			{
+				ColorChar(content[r][c], color[r][c]);
+			}
 		}
 	}
 }
@@ -436,7 +584,7 @@ void PrintContentR(int r)
 void PrintContent()
 {
 	int r, c;
-	system("cls");
+	clrscr();
 	for(r=0; r<numberOfRow; r++)
 	{
 		PrintContentR(r);
@@ -730,6 +878,11 @@ int EditContent()
 				else if(operation == VK_LEFT)
 				{
 					if(cursorC > 0) cursorC--;
+					else if(cursorR > 0)//行首左移尝试上一行
+					{
+						cursorR--;
+						cursorC = numberOfColumn[cursorR]-1;
+					}
 				}
 				else if(operation == VK_DOWN)
 				{
@@ -739,6 +892,11 @@ int EditContent()
 				else if(operation == VK_RIGHT)
 				{
 					if(cursorC < numberOfColumn[cursorR]-1) cursorC++;//列最大为换行符位置
+					else if(cursorR < numberOfRow-1)//行末右移尝试下一行
+					{
+						cursorR++;
+						cursorC = 0;
+					}
 				}
 				gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
 				continue;
@@ -893,6 +1051,7 @@ int EditContent()
 
 int main()
 {
+	setbgcolor(Color_Default);
 	char* fileName = InputFileName();
 	//char* fileName = "Text Editor.c";
 	int r, f;
@@ -955,4 +1114,15 @@ Text Editor 0.6
 ——新增 从0开始的行号
 ——优化 WASD光标移动改为方向键
 ——修复 新行退格不会抹去尾部
+Text Editor 0.7
+——新增 初步区分字符串内转义序列
+——新增 4级彩虹括号和彩虹缩进
+——新增 4空格显示彩虹缩进
+——新增 行号着色
+——优化 增补3个常见关键字(bool,false,true)
+——优化 方向键行首左移或行末右移时移动光标
+——优化 Color_Default可改变背景色
+——优化 使用高区分配色
+//——新增 当前行号
+//——优化 行号从1开始
 --------------------------------*/
