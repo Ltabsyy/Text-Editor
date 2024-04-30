@@ -5,6 +5,7 @@
 
 #define MaxFileName 128
 
+char* fileName;
 char** content;
 int** color;
 int numberOfRow;
@@ -15,7 +16,7 @@ enum Color {
 	//高区分配色
 	Color_Default = 0x07,//编辑器默认
 	Color_Gutter = 0x08,//行号
-	//Color_Gutter_AL = 0x0b,//当前行号
+	Color_Gutter_AL = 0x0b,//当前行号
 	Color_Comment = 0x02,//注释
 	Color_Symbol = 0x0c,//符号
 	Color_Bracket_L1 = 0x0c,//1级括号
@@ -106,6 +107,21 @@ void ColorNumber(int number, int color)//输出彩色数字
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 	printf("%d", number);
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color_Default);
+}
+void SetConsoleMouseMode(int mode)//键鼠操作切换
+{
+	if(mode == 1)//切换到鼠标
+	{
+		SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS);
+	}
+	else if(mode == 0)//切换到键盘
+	{
+		//SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS);
+		//system("pause");//system指令使SetConsoleMode失效
+		SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT
+			| ENABLE_MOUSE_INPUT | ENABLE_INSERT_MODE | ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS
+			| ENABLE_AUTO_POSITION);
+	}
 }
 
 char* InputFileName()
@@ -522,17 +538,24 @@ int Place(int n)//计算某数所占位数
 	return i;
 }
 
-void PrintContentR(int r)
+void PrintGutter(int r, int al)
 {
-	int c, ishead = 1;
+	int c;
 	gotoxy(0, r);
-	for(c=0; c<Place(numberOfRow)-Place(r); c++)
+	for(c=0; c<Place(numberOfRow)-Place(r+1); c++)
 	{
 		ColorChar(' ', Color_Gutter);
 	}
-	/*if(r == cursorR) ColorNumber(r, Color_Gutter_AL);
-	else */ColorNumber(r, Color_Gutter);
+	if(al == 1) ColorNumber(r+1, Color_Gutter_AL);
+	else ColorNumber(r+1, Color_Gutter);
 	ColorChar(' ', Color_Gutter);
+}
+
+void PrintContentR(int r)
+{
+	int c, ishead = 1;
+	if(r == cursorR) PrintGutter(r, 1);
+	else PrintGutter(r, 0);
 	for(c=0; c<numberOfColumn[r]; c++)
 	{
 		if(c == numberOfColumn[r]-1)
@@ -850,26 +873,49 @@ int EditContent()
 	COORD mousePos = {0, 0};
 	INPUT_RECORD rcd;
 	DWORD rcdnum;
-	SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS);
 	gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
 	while(1)
 	{
 		ReadConsoleInput(hdin, &rcd, 1, &rcdnum);
-		if(rcd.EventType == MOUSE_EVENT && rcd.Event.MouseEvent.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
+		if(rcd.EventType == MOUSE_EVENT)
 		{
-			mousePos = rcd.Event.MouseEvent.dwMousePosition;
-			cursorR = mousePos.Y;
-			if(cursorR > numberOfRow-1) cursorR = numberOfRow-1;
-			cursorC = mousePos.X-3*TabBefore(cursorR, mousePos.X)-Place(numberOfRow)-1;
-			while(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1 < mousePos.X) cursorC++;
-			if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
-			gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
+			if(rcd.Event.MouseEvent.dwButtonState == FROM_LEFT_1ST_BUTTON_PRESSED)
+			{
+				PrintGutter(cursorR, 0);
+				mousePos = rcd.Event.MouseEvent.dwMousePosition;
+				cursorR = mousePos.Y;
+				if(cursorR > numberOfRow-1) cursorR = numberOfRow-1;
+				cursorC = mousePos.X-3*TabBefore(cursorR, mousePos.X)-Place(numberOfRow)-1;
+				while(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1 < mousePos.X) cursorC++;
+				if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+				PrintGutter(cursorR, 1);
+				gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
+			}
+			if(rcd.Event.MouseEvent.dwEventFlags == MOUSE_WHEELED)
+			{
+				PrintGutter(cursorR, 0);
+				//printf("%lld", rcd.Event.MouseEvent.dwButtonState);
+				if(rcd.Event.MouseEvent.dwButtonState/0x10000 == 0xff88)//4287102976滚轮向下
+				{
+					if(cursorR+3 < numberOfRow) cursorR += 3;
+					else if(cursorR+1 < numberOfRow) cursorR++;
+				}
+				else if(rcd.Event.MouseEvent.dwButtonState/0x10000 == 0x78)//7864320滚轮向上
+				{
+					if(cursorR-3 >= 0) cursorR -= 3;
+					else if(cursorR > 0) cursorR--;
+				}
+				if(cursorC > numberOfColumn[cursorR]-1) cursorC = numberOfColumn[cursorR]-1;
+				PrintGutter(cursorR, 1);
+				gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
+			}
 		}
 		else if(rcd.EventType == KEY_EVENT && rcd.Event.KeyEvent.bKeyDown == 1)
 		{
 			operation = rcd.Event.KeyEvent.wVirtualKeyCode;
 			if(operation == VK_UP || operation == VK_LEFT || operation == VK_DOWN || operation == VK_RIGHT)
 			{
+				PrintGutter(cursorR, 0);
 				if(operation == VK_UP)
 				{
 					if(cursorR > 0) cursorR--;
@@ -898,17 +944,40 @@ int EditContent()
 						cursorC = 0;
 					}
 				}
+				PrintGutter(cursorR, 1);
 				gotoxy(cursorC+3*TabBefore(cursorR, cursorC)+Place(numberOfRow)+1, cursorR);
 				continue;
+			}
+			if(operation == VK_CAPITAL)
+			{
+				//printf("%x", rcd.Event.KeyEvent.dwControlKeyState & CAPSLOCK_ON != 0);//&优先级低
+				if(rcd.Event.KeyEvent.dwControlKeyState & CAPSLOCK_ON)
+				{
+					SetConsoleMouseMode(0);
+					while(rcd.Event.KeyEvent.dwControlKeyState & CAPSLOCK_ON)
+					{
+						ReadConsoleInput(hdin, &rcd, 1, &rcdnum);
+						Sleep(100);
+					}
+					SetConsoleMouseMode(1);
+				}
 			}
 			if(GetKeyState(VK_CONTROL) < 0)
 			{
 				if(operation == 'S')
 				{
-					SetConsoleMode(hdin, ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT
-						| ENABLE_MOUSE_INPUT | ENABLE_INSERT_MODE | ENABLE_QUICK_EDIT_MODE | ENABLE_EXTENDED_FLAGS
-						| ENABLE_AUTO_POSITION);
-					WriteContent(InputFileName());
+					if(GetKeyState(VK_SHIFT) < 0)
+					{
+						//printf("Ctrl+Shift+S");
+						SetConsoleMouseMode(0);
+						WriteContent(InputFileName());
+						SetConsoleMouseMode(1);
+					}
+					else
+					{
+						//printf("Ctrl+S");
+						WriteContent(fileName);
+					}
 					printf("[Saved!]");
 					continue;
 				}
@@ -970,7 +1039,7 @@ int EditContent()
 				//printf("[UnknownKey0x%x]", operation);
 			}
 		}
-		Sleep(100);
+		Sleep(20);
 	}
 	if(operation == '\r')
 	{
@@ -1051,14 +1120,22 @@ int EditContent()
 
 int main()
 {
-	setbgcolor(Color_Default);
-	char* fileName = InputFileName();
-	//char* fileName = "Text Editor.c";
 	int r, f;
+	setbgcolor(Color_Default);
+	printf("Text Editor使用说明：\n");
+	printf("输入名称或拖入文件后回车打开文件，若不存在则自动创建该文件。\n");
+	printf("此程序以UTF-8编码显示文件内容，自动显示高亮和缩进提示线，无视文件后缀。\n");
+	printf("使用鼠标左键或方向键定位光标，使用滚轮时光标移动3行每格。\n");
+	printf("使用键盘输入小写英文字母、数字和符号，按住Shift即可输入大写英文字母和符号。\n");
+	printf("按下CapsLk时，若CapsLk亮起，则临时禁用编辑功能，直到CapsLk熄灭。\n");
+	printf("Ctrl+S保存，Ctrl+Shift+S另存为。保存后仍为当前文件编辑状态。\n");
+	fileName = InputFileName();
+	//fileName = "Text Editor.c";
 	ReadContent(fileName);
 	system("chcp 65001");//以UTF-8编码显示
 	AnalysisColor();
 	PrintContent();
+	SetConsoleMouseMode(1);
 	while(1)
 	{
 		for(r=0; r<numberOfRow; r++)
@@ -1123,6 +1200,12 @@ Text Editor 0.7
 ——优化 方向键行首左移或行末右移时移动光标
 ——优化 Color_Default可改变背景色
 ——优化 使用高区分配色
-//——新增 当前行号
-//——优化 行号从1开始
+Text Editor 0.8
+——新增 当前行号
+——新增 滚轮拨动时光标移动3行
+——新增 大写锁定时禁用编辑功能
+——新增 使用说明
+——优化 行号从1开始
+——优化 按键检测周期由100ms缩短至20ms
+——优化 区分Ctrl+S保存和Ctrl+Shift+S另存为
 --------------------------------*/
