@@ -421,15 +421,34 @@ void AnalysisColor()
 								color[r][c+1] = Color_EscapeSequences;
 								c++;
 							}
-							else if(content[r][c+1] >= '0' && content[r][c+1] <= 7 && c+3 < end
-								&& content[r][c+2] >= '0' && content[r][c+2] <= 7
-								&& content[r][c+3] >= '0' && content[r][c+3] <= 7)
+							else if(content[r][c+1] >= '0' && content[r][c+1] <= '7' && c+3 < end
+								&& content[r][c+2] >= '0' && content[r][c+2] <= '7'
+								&& content[r][c+3] >= '0' && content[r][c+3] <= '7')
 							{
 								color[r][c] = Color_EscapeSequences;
 								color[r][c+1] = Color_EscapeSequences;
 								color[r][c+2] = Color_EscapeSequences;
 								color[r][c+3] = Color_EscapeSequences;
 								c += 3;
+							}
+							else if(content[r][c+1] == '0')
+							{
+								color[r][c] = Color_EscapeSequences;
+								color[r][c+1] = Color_EscapeSequences;
+								c++;
+							}
+							else if(content[r][c+1] == 'x')
+							{
+								color[r][c] = Color_EscapeSequences;
+								color[r][c+1] = Color_EscapeSequences;
+								c++;
+								while((content[r][c+1] >= '0' && content[r][c+1] <= '9')
+									|| (content[r][c+1] >= 'A' && content[r][c+1] <= 'F')
+									|| (content[r][c+1] >= 'a' && content[r][c+1] <= 'f'))
+								{
+									color[r][c+1] = Color_EscapeSequences;
+									c++;
+								}
 							}
 						}
 					}
@@ -1276,5 +1295,9 @@ Text Editor 0.9
 ——优化 更准确的判断"\""和"\\"
 ——修复 连续删除右侧有匹配符号的([{'"<时可能闪退
 ——修复 新建文件再次打开的行数偏差1
+Text Editor 1.0
+——新增 识别转义序列\0
+——新增 十六进制数转义序列
+——修复 不能识别八进制数转义序列
 //——新增 插入中文字符
 --------------------------------*/
