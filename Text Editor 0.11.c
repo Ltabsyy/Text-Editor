@@ -7,66 +7,54 @@
 
 char* fileName;
 char** content;
-int** color;
+int** type;
 int numberOfRow;
 int* numberOfColumn;
 int cursorR = 0, cursorC = 0;
 
-enum Color {
-	//高区分配色
-	Color_Default = 0x07,//编辑器默认
-	Color_Gutter = 0x08,//行号
-	Color_Gutter_AL = 0x0b,//当前行号
-	Color_Comment = 0x02,//注释
-	Color_Symbol = 0x0c,//符号
-	Color_Bracket_L1 = 0x0c,//1级括号
-	Color_Bracket_L2 = 0x0e,//2级括号
-	Color_Bracket_L3 = 0x0d,//3级括号
-	Color_Bracket_L4 = 0x09,//4级括号
-	Color_Number = 0x0f,//数字
-	Color_Preprocessor = 0x0d,//预处理指令
-	Color_Character = 0x0a,//字符
-	Color_String = 0x06,//字符串
-	Color_EscapeSequences = 0x0e,//转义序列0x06
-	Color_ReservedWord = 0x05,//关键字
-	Color_Function = 0x0e,//函数
-	Color_Variable = 0x0b//变量
-	//低区分配色
-	/*Color_Default = 0x07,
-	Color_Gutter = 0x07,
-	Color_Gutter_AL = 0x0f,
-	Color_Comment = 0x02,
-	Color_Symbol = 0x0c,
-	Color_Bracket_L1 = 0x0c,
-	Color_Bracket_L2 = 0x0c,
-	Color_Bracket_L3 = 0x0c,
-	Color_Bracket_L4 = 0x0c,
-	Color_Number = 0x09,
-	Color_Preprocessor = 0x0d,
-	Color_Character = 0x09,
-	Color_String = 0x09,
-	Color_EscapeSequences = 0x09,
-	Color_ReservedWord = 0x0d,
-	Color_Function = 0x0e,
-	Color_Variable = 0x0b*/
-	//浅色配色
-	/*Color_Default = 0xf0,
-	Color_Gutter = 0xf0,
-	Color_Gutter_AL = 0xf1,
-	Color_Comment = 0xf8,
-	Color_Symbol = 0xf4,
-	Color_Bracket_L1 = 0xf1,
-	Color_Bracket_L2 = 0xf4,
-	Color_Bracket_L3 = 0xf1,
-	Color_Bracket_L4 = 0xf4,
-	Color_Number = 0xf1,
-	Color_Preprocessor = 0xf0,
-	Color_Character = 0xf1,
-	Color_String = 0xf1,
-	Color_EscapeSequences = 0xf4,
-	Color_ReservedWord = 0xf5,
-	Color_Function = 0xf0,
-	Color_Variable = 0xf0*/
+enum Type {
+	Type_Default = 0,//编辑器默认
+	Type_Gutter = 1,//行号
+	Type_Gutter_AL = 2,//当前行号
+	Type_Comment = 3,//注释
+	Type_Symbol = 4,//符号
+	Type_Bracket_L1 = 5,//1级括号
+	Type_Bracket_L2 = 6,//2级括号
+	Type_Bracket_L3 = 7,//3级括号
+	Type_Bracket_L4 = 8,//4级括号
+	Type_Number = 9,//数字
+	Type_Preprocessor = 10,//预处理指令
+	Type_Character = 11,//字符
+	Type_String = 12,//字符串
+	Type_EscapeSequences = 13,//转义序列0x06
+	Type_ReservedWord = 14,//关键字
+	Type_Function = 15,//函数
+	Type_Variable = 16//变量
+};
+
+int Color[17] = {
+	//MoLo Console Minus
+	0x07,//编辑器默认
+	0x08,//行号
+	0x0b,//当前行号
+	0x02,//注释
+	0x0c,//符号
+	0x0c,//1级括号
+	0x0e,//2级括号
+	0x0d,//3级括号
+	0x09,//4级括号
+	0x0f,//数字
+	0x0d,//预处理指令
+	0x0a,//字符
+	0x06,//字符串
+	0x0e,//转义序列0x06
+	0x05,//关键字
+	0x0e,//函数
+	0x0b//变量
+	//MoLo Console Minus Minus
+	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0e, 0x0b
+	//MoLo Pencil Console
+	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf0, 0xf0
 };
 
 void gotoxy(short int x, short int y)//光标定位
@@ -100,13 +88,13 @@ void ColorChar(char c, int color)//输出彩色字符
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 	putchar(c);
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color_Default);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color[Type_Default]);
 }
 void ColorNumber(int number, int color)//输出彩色数字
 {
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), color);
 	printf("%d", number);
-	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color_Default);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), Color[Type_Default]);
 }
 void SetConsoleMouseMode(int mode)//键鼠操作切换
 {
@@ -143,45 +131,6 @@ char* InputFileName()
 		}
 	}
 	return fileName;
-}
-
-void DrawColorInRange(int r1, int c1, int r2, int c2, int cl)
-{
-	int r, c;
-	for(r=r1; r<=r2; r++)
-	{
-		if(r == r1) c = c1;
-		else c = 0;
-		while(c < numberOfColumn[r])
-		{
-			color[r][c] = cl;
-			if(r == r2 && c == c2) break;
-			c++;
-		}
-	}
-}
-
-int FindMatch(int r, int c1, char ch)
-{
-	int c;
-	for(c=c1+1; c<numberOfColumn[r]; c++)
-	{
-		if(content[r][c] == ch && color[r][c] == Color_Default)
-		{
-			if(ch == '\'' && content[r][c-1] == '\\'
-				&& c-2 >= 0 && content[r][c-2] != '\\')//判断'\''和'\\'
-			{
-				continue;
-			}
-			if(ch == '"' && content[r][c-1] == '\\'
-				&& c-2 >= 0 && content[r][c-2] != '\\')//判断"\""和"\\"
-			{
-				continue;
-			}
-			return c;
-		}
-	}
-	return -1;
 }
 
 int FindReservedWord(int r1, int c1)
@@ -227,13 +176,13 @@ int FindReservedWord(int r1, int c1)
 
 void AnalysisColor()
 {
-	int r, c, end, commentStart;
+	int r, c, start, end;
 	int bLevel = 0;
-	color =(int**) calloc(numberOfRow, sizeof(int*));
+	type =(int**) calloc(numberOfRow, sizeof(int*));
 	//符号着色
 	for(r=0; r<numberOfRow; r++)
 	{
-		color[r] =(int*) calloc(numberOfColumn[r], sizeof(int));
+		type[r] =(int*) calloc(numberOfColumn[r], sizeof(int));
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
 			/*----------------
@@ -254,33 +203,29 @@ void AnalysisColor()
 			123-126:{|}~
 			127:    退格符
 			----------------*/
-			color[r][c] = Color_Default;
-			if(content[r][c] == '!'
-				|| content[r][c] == '%'
-				|| content[r][c] == '&'
-				|| content[r][c] == '*'
-				|| content[r][c] == '+'
-				|| content[r][c] == ','
-				|| content[r][c] == '-'
-				|| content[r][c] == '.'
-				|| content[r][c] == '/'
-				|| content[r][c] == ':'
-				|| content[r][c] == ';'
-				|| content[r][c] == '<'
-				|| content[r][c] == '='
-				|| content[r][c] == '>'
-				|| content[r][c] == '?'
-				|| content[r][c] == '^'
-				|| content[r][c] == '|'
-				|| content[r][c] == '~')
+			//33-47除"#$'，58-64除@，91-96除\_`，123-126
+			if((content[r][c] >= 'a' && content[r][c] <= 'z')
+				|| (content[r][c] >= 'A' && content[r][c] <= 'Z')
+				|| content[r][c] <= ' ')//对于大多数字母，不进行后续比较
 			{
-				color[r][c] = Color_Symbol;
+				type[r][c] = Type_Default;
 			}
-			else if(content[r][c] == '(' || content[r][c] == ')'
-				|| content[r][c] == '[' || content[r][c] == ']'
-				|| content[r][c] == '{' || content[r][c] == '}')
+			/*else if(content[r][c] >= '0' && content[r][c] <= '9')
 			{
-				color[r][c] = Color_Symbol;
+				type[r][c] = Type_Number;
+			}*/
+			else if((content[r][c] >= '(' && content[r][c] <= '/')
+				|| (content[r][c] >= ':' && content[r][c] <= '?')
+				|| (content[r][c] >= '{' && content[r][c] <= '~')
+				|| content[r][c] == '!' || content[r][c] == '%' || content[r][c] == '&'
+				|| content[r][c] == '[' || content[r][c] == ']'
+				|| content[r][c] == '^')//优先比较常见字符以加速
+			{
+				type[r][c] = Type_Symbol;
+			}
+			else
+			{
+				type[r][c] = Type_Default;
 			}
 		}
 	}
@@ -296,7 +241,7 @@ void AnalysisColor()
 					|| content[r][c-1] == '_'));
 				else//数字前面不是字母或下划线
 				{
-					color[r][c] = Color_Number;
+					type[r][c] = Type_Number;
 				}
 			}
 			if(content[r][c] == '.' && c > 0 && c+1 < numberOfColumn[r])//小数点
@@ -304,7 +249,7 @@ void AnalysisColor()
 				if(content[r][c-1] >= '0' && content[r][c-1] <= '9'
 					&& content[r][c+1] >= '0' && content[r][c+1] <= '9')
 				{
-					color[r][c] = Color_Number;
+					type[r][c] = Type_Number;
 				}
 			}
 			if(content[r][c] == '0' && c+1 < numberOfColumn[r] && content[r][c+1] == 'x')//十六进制数
@@ -315,14 +260,14 @@ void AnalysisColor()
 						|| (content[r][c+2] >= 'A' && content[r][c+2] <= 'F')
 						|| (content[r][c+2] >= 'a' && content[r][c+2] <= 'f'))
 					{
-						color[r][c+1] = Color_Number;
+						type[r][c+1] = Type_Number;
 						for(c+=2; c<numberOfColumn[r]; c++)
 						{
 							if((content[r][c] >= '0' && content[r][c] <= '9')
 								|| (content[r][c] >= 'A' && content[r][c] <= 'F')
 								|| (content[r][c] >= 'a' && content[r][c] <= 'f'))
 							{
-								color[r][c] = Color_Number;
+								type[r][c] = Type_Number;
 							}
 							else
 							{
@@ -342,28 +287,28 @@ void AnalysisColor()
 			for(c=0; c<numberOfColumn[r]; c++)
 			{
 				if(content[r][c] == '<') break;
-				color[r][c] = Color_Preprocessor;
+				type[r][c] = Type_Preprocessor;
 			}
 		}//行首为#且在<前的内容
 	}
 	//注释着色
-	commentStart = 0;
+	start = 0;
 	for(r=0; r<numberOfRow; r++)
 	{
 		for(c=0; c<numberOfColumn[r]-1; c++)
 		{
 			if(content[r][c] == '/' && content[r][c+1] == '*')
 			{
-				commentStart = 1;
+				start = 1;
 			}
-			if(commentStart == 1)
+			if(start == 1)
 			{
-				color[r][c] = Color_Comment;
+				type[r][c] = Type_Comment;
 			}
 			if(content[r][c] == '*' && content[r][c+1] == '/')
 			{
-				commentStart = 0;
-				color[r][c+1] = Color_Comment;
+				start = 0;
+				type[r][c+1] = Type_Comment;
 			}
 		}
 		for(c=0; c<numberOfColumn[r]-1; c++)
@@ -372,7 +317,7 @@ void AnalysisColor()
 			{
 				for(; c<numberOfColumn[r]; c++)
 				{
-					color[r][c] = Color_Comment;
+					type[r][c] = Type_Comment;
 				}
 			}
 		}
@@ -384,11 +329,28 @@ void AnalysisColor()
 		{
 			if(content[r][c] == '\'')
 			{
-				end = FindMatch(r, c, '\'');
+				start = c;
+				end = -1;
+				for(c++; c<numberOfColumn[r]; c++)
+				{
+					if(content[r][c] == '\'' && type[r][c] == Type_Default)
+					{
+						if(content[r][c-1] == '\\' && c-2 >= 0 && content[r][c-2] != '\\')
+						{
+							continue;//判断'\''和'\\'
+						}
+						end = c;
+						break;
+					}
+				}
+				c = start;
 				if(end != -1)
 				{
-					DrawColorInRange(r, c, r, end, Color_Character);
-					c = end;
+					for(; c<=end; c++)
+					{
+						type[r][c] = Type_Character;
+					}
+					c--;
 				}
 			}
 		}
@@ -396,10 +358,29 @@ void AnalysisColor()
 		{
 			if(content[r][c] == '"')
 			{
-				end = FindMatch(r, c, '"');
+				start = c;
+				end = -1;
+				for(c++; c<numberOfColumn[r]; c++)
+				{
+					if(content[r][c] == '"' && type[r][c] == Type_Default)
+					{
+						if(content[r][c-1] == '\\' && c-2 >= 0 && content[r][c-2] != '\\')
+						{
+							continue;//判断"\""和"\\"
+						}
+						end = c;
+						break;
+					}
+				}
+				c = start;
 				if(end != -1)
 				{
-					DrawColorInRange(r, c, r, end, Color_String);
+					start = c;
+					for(; c<=end; c++)
+					{
+						type[r][c] = Type_String;
+					}
+					c = start;
 					//转义序列着色
 					for(c++; c<end; c++)
 					{
@@ -417,36 +398,36 @@ void AnalysisColor()
 								|| content[r][c+1] == 't'
 								|| content[r][c+1] == 'v')
 							{
-								color[r][c] = Color_EscapeSequences;
-								color[r][c+1] = Color_EscapeSequences;
+								type[r][c] = Type_EscapeSequences;
+								type[r][c+1] = Type_EscapeSequences;
 								c++;
 							}
 							else if(content[r][c+1] >= '0' && content[r][c+1] <= '7' && c+3 < end
 								&& content[r][c+2] >= '0' && content[r][c+2] <= '7'
 								&& content[r][c+3] >= '0' && content[r][c+3] <= '7')
 							{
-								color[r][c] = Color_EscapeSequences;
-								color[r][c+1] = Color_EscapeSequences;
-								color[r][c+2] = Color_EscapeSequences;
-								color[r][c+3] = Color_EscapeSequences;
+								type[r][c] = Type_EscapeSequences;
+								type[r][c+1] = Type_EscapeSequences;
+								type[r][c+2] = Type_EscapeSequences;
+								type[r][c+3] = Type_EscapeSequences;
 								c += 3;
 							}
 							else if(content[r][c+1] == '0')
 							{
-								color[r][c] = Color_EscapeSequences;
-								color[r][c+1] = Color_EscapeSequences;
+								type[r][c] = Type_EscapeSequences;
+								type[r][c+1] = Type_EscapeSequences;
 								c++;
 							}
 							else if(content[r][c+1] == 'x')
 							{
-								color[r][c] = Color_EscapeSequences;
-								color[r][c+1] = Color_EscapeSequences;
+								type[r][c] = Type_EscapeSequences;
+								type[r][c+1] = Type_EscapeSequences;
 								c++;
 								while((content[r][c+1] >= '0' && content[r][c+1] <= '9')
 									|| (content[r][c+1] >= 'A' && content[r][c+1] <= 'F')
 									|| (content[r][c+1] >= 'a' && content[r][c+1] <= 'f'))
 								{
-									color[r][c+1] = Color_EscapeSequences;
+									type[r][c+1] = Type_EscapeSequences;
 									c++;
 								}
 							}
@@ -462,7 +443,7 @@ void AnalysisColor()
 	{
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
-			if(color[r][c] == Color_Symbol)
+			if(type[r][c] == Type_Symbol)
 			{
 				if(content[r][c] == '(' || content[r][c] == ')'
 					|| content[r][c] == '[' || content[r][c] == ']'
@@ -472,10 +453,10 @@ void AnalysisColor()
 					{
 						bLevel++;
 					}
-					if(bLevel % 4 == 0) color[r][c] = Color_Bracket_L1;
-					else if(bLevel % 4 == 1) color[r][c] = Color_Bracket_L2;//保持底层为L2
-					else if(bLevel % 4 == 2) color[r][c] = Color_Bracket_L3;
-					else if(bLevel % 4 == 3) color[r][c] = Color_Bracket_L4;
+					if(bLevel % 4 == 0) type[r][c] = Type_Bracket_L1;
+					else if(bLevel % 4 == 1) type[r][c] = Type_Bracket_L2;//保持底层为L2
+					else if(bLevel % 4 == 2) type[r][c] = Type_Bracket_L3;
+					else if(bLevel % 4 == 3) type[r][c] = Type_Bracket_L4;
 					if(content[r][c] == ')' || content[r][c] == ']' || content[r][c] == '}')
 					{
 						bLevel--;
@@ -493,12 +474,16 @@ void AnalysisColor()
 				|| (content[r][c-1] >= 'A' && content[r][c-1] <= 'Z')
 				|| (content[r][c-1] >= 'a' && content[r][c-1] <= 'z')
 				|| content[r][c-1] == '_'));
-			else if(color[r][c] == Color_Default)//仅搜索未着色部分
+			else if(type[r][c] == Type_Default)//仅搜索未着色部分
 			{
 				end = FindReservedWord(r, c);
 				if(end > 0)
 				{
-					DrawColorInRange(r, c, r, c+end-1, Color_ReservedWord);
+					for(start=c; c<=start+end-1; c++)
+					{
+						type[r][c] = Type_ReservedWord;
+					}
+					c--;
 				}
 			}
 		}
@@ -508,7 +493,7 @@ void AnalysisColor()
 	{
 		for(c=0; c<numberOfColumn[r]-1; c++)
 		{
-			if(color[r][c] == Color_Default && content[r][c+1] == '(')
+			if(type[r][c] == Type_Default && content[r][c+1] == '(')
 			{
 				for(end=c; c>=0; c--)//(前为函数
 				{
@@ -517,7 +502,7 @@ void AnalysisColor()
 						|| (content[r][c] >= 'a' && content[r][c] <= 'z')
 						|| content[r][c] == '_')
 					{
-						color[r][c] = Color_Function;
+						type[r][c] = Type_Function;
 					}
 					else
 					{
@@ -533,9 +518,9 @@ void AnalysisColor()
 	{
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
-			if(color[r][c] == Color_Default)
+			if(type[r][c] == Type_Default)
 			{
-				color[r][c] = Color_Variable;
+				type[r][c] = Type_Variable;
 			}
 		}
 	}
@@ -585,11 +570,11 @@ void PrintGutter(int r, int al)
 	gotoxy(0, r);
 	for(c=0; c<Place(numberOfRow)-Place(r+1); c++)
 	{
-		ColorChar(' ', Color_Gutter);
+		ColorChar(' ', Color[Type_Gutter]);
 	}
-	if(al == 1) ColorNumber(r+1, Color_Gutter_AL);
-	else ColorNumber(r+1, Color_Gutter);
-	ColorChar(' ', Color_Gutter);
+	if(al == 1) ColorNumber(r+1, Color[Type_Gutter_AL]);
+	else ColorNumber(r+1, Color[Type_Gutter]);
+	ColorChar(' ', Color[Type_Gutter]);
 }
 
 void PrintContentR(int r)
@@ -609,10 +594,10 @@ void PrintContentR(int r)
 			if(content[r][c] == '\t')
 			{
 				//printf("    ");
-				if(c % 4 == 0) ColorChar(':', Color_Bracket_L2);
-				else if(c % 4 == 1) ColorChar(':', Color_Bracket_L3);
-				else if(c % 4 == 2) ColorChar(':', Color_Bracket_L4);
-				else if(c % 4 == 3) ColorChar(':', Color_Bracket_L1);
+				if(c % 4 == 0) ColorChar(':', Color[Type_Bracket_L2]);
+				else if(c % 4 == 1) ColorChar(':', Color[Type_Bracket_L3]);
+				else if(c % 4 == 2) ColorChar(':', Color[Type_Bracket_L4]);
+				else if(c % 4 == 3) ColorChar(':', Color[Type_Bracket_L1]);
 				//ColorChar(':', Color_Default/16*16 + 0x08);
 				printf("   ");
 			}
@@ -620,10 +605,10 @@ void PrintContentR(int r)
 			{
 				if(c % 4 == 0)
 				{
-					if(c/4 % 4 == 0) ColorChar(':', Color_Bracket_L2);
-					else if(c/4 % 4 == 1) ColorChar(':', Color_Bracket_L3);
-					else if(c/4 % 4 == 2) ColorChar(':', Color_Bracket_L4);
-					else if(c/4 % 4 == 3) ColorChar(':', Color_Bracket_L1);
+					if(c/4 % 4 == 0) ColorChar(':', Color[Type_Bracket_L2]);
+					else if(c/4 % 4 == 1) ColorChar(':', Color[Type_Bracket_L3]);
+					else if(c/4 % 4 == 2) ColorChar(':', Color[Type_Bracket_L4]);
+					else if(c/4 % 4 == 3) ColorChar(':', Color[Type_Bracket_L1]);
 				}
 				else
 				{
@@ -640,7 +625,7 @@ void PrintContentR(int r)
 			}
 			else
 			{
-				ColorChar(content[r][c], color[r][c]);
+				ColorChar(content[r][c], Color[type[r][c]]);
 			}
 		}
 	}
@@ -827,7 +812,7 @@ int Operate(char operation)
 			}
 			cursorR--;//光标行定位
 			//删除尾行空间
-			free(color[numberOfRow-1]);//color在main中释放
+			free(type[numberOfRow-1]);//color在main中释放
 			numberOfRow--;
 			newContent =(char**) calloc(numberOfRow, sizeof(char*));
 			newNumberOfColumn =(int*) calloc(numberOfRow, sizeof(int));
@@ -892,8 +877,8 @@ int Operate(char operation)
 		cursorR++;
 		cursorC = 0;
 		numberOfRow++;
-		color =(int**) realloc(color, numberOfRow * sizeof(int*));
-		color[numberOfRow-1] =(int*) calloc(numberOfColumn[r], sizeof(int));//防止main中释放时闪退
+		type =(int**) realloc(type, numberOfRow * sizeof(int*));
+		type[numberOfRow-1] =(int*) calloc(numberOfColumn[r], sizeof(int));//防止main中释放时闪退
 		//CheckGlobalPointer();
 		free(content);
 		free(numberOfColumn);
@@ -1197,7 +1182,7 @@ int EditContent()
 int main()
 {
 	int r, f;
-	setbgcolor(Color_Default);
+	setbgcolor(Color[Type_Default]);
 	printf("Text Editor使用说明：\n");
 	printf("输入名称或拖入文件后回车打开文件，若不存在则自动创建该文件。\n");
 	printf("此程序以UTF-8编码显示文件内容，自动显示高亮和缩进提示线，无视文件后缀。\n");
@@ -1218,9 +1203,9 @@ int main()
 		f = EditContent();
 		for(r=0; r<numberOfRow; r++)
 		{
-			free(color[r]);
+			free(type[r]);
 		}
-		free(color);
+		free(type);
 		AnalysisColor();
 		if(f == 0) PrintContentR(cursorR);//仅重绘当前行
 		else PrintContent();
@@ -1295,9 +1280,11 @@ Text Editor 0.9
 ——优化 更准确的判断"\""和"\\"
 ——修复 连续删除右侧有匹配符号的([{'"<时可能闪退
 ——修复 新建文件再次打开的行数偏差1
-Text Editor 1.0
+Text Editor 0.10
 ——新增 识别转义序列\0
 ——新增 十六进制数转义序列
 ——修复 不能识别八进制数转义序列
+Text Editor 0.11
+——优化 着色效率
 //——新增 插入中文字符
 --------------------------------*/
