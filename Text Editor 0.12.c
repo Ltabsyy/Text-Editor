@@ -26,13 +26,14 @@ enum Type {
 	Type_Preprocessor = 10,//预处理指令
 	Type_Character = 11,//字符
 	Type_String = 12,//字符串
-	Type_EscapeSequences = 13,//转义序列0x06
+	Type_EscapeSequences = 13,//转义序列
 	Type_ReservedWord = 14,//关键字
 	Type_Function = 15,//函数
-	Type_Variable = 16//变量
+	Type_Variable = 16,//变量
+	Type_Variable_L = 17//局部变量
 };
 
-int Color[17] = {
+int Color[18] = {
 	//MoLo Console Minus
 	0x07,//编辑器默认
 	0x08,//行号
@@ -50,11 +51,12 @@ int Color[17] = {
 	0x0e,//转义序列0x06
 	0x05,//关键字
 	0x0e,//函数
-	0x0b//变量
+	0x0b,//变量
+	0x03//局部变量
 	//MoLo Console Minus Minus
-	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0e, 0x0b
+	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0e, 0x0b, 0x0b
 	//MoLo Pencil Console
-	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf0, 0xf0
+	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf0, 0xf0, 0xf0
 };
 
 void gotoxy(short int x, short int y)//光标定位
@@ -286,8 +288,38 @@ void AnalysisColor()
 		{
 			for(c=0; c<numberOfColumn[r]; c++)
 			{
-				if(content[r][c] == '<') break;
-				type[r][c] = Type_Preprocessor;
+				if(content[r][c] == '<' || content[r][c] == '"')
+				{
+					if(content[r][c] == '<')//将<>内以字符串着色
+					{
+						start = c;
+						end = -1;
+						for(c++; c<numberOfColumn[r]; c++)
+						{
+							if(content[r][c] == '>')
+							{
+								end = c;
+								break;
+							}
+						}
+						c = start;
+						if(end != -1)
+						{
+							for(c++; c<end; c++)
+							{
+								if(type[r][c] == Type_Default)
+								{
+									type[r][c] = Type_String;
+								}
+							}
+						}
+					}
+					break;
+				}
+				else
+				{
+					type[r][c] = Type_Preprocessor;
+				}
 			}
 		}//行首为#且在<前的内容
 	}
@@ -295,7 +327,7 @@ void AnalysisColor()
 	start = 0;
 	for(r=0; r<numberOfRow; r++)
 	{
-		for(c=0; c<numberOfColumn[r]-1; c++)
+		for(c=0; c+1 < numberOfColumn[r]; c++)
 		{
 			if(content[r][c] == '/' && content[r][c+1] == '*')
 			{
@@ -311,7 +343,7 @@ void AnalysisColor()
 				type[r][c+1] = Type_Comment;
 			}
 		}
-		for(c=0; c<numberOfColumn[r]-1; c++)
+		for(c=0; c+1 < numberOfColumn[r]; c++)
 		{
 			if(content[r][c] == '/' && content[r][c+1] == '/')
 			{
@@ -422,13 +454,18 @@ void AnalysisColor()
 							{
 								type[r][c] = Type_EscapeSequences;
 								type[r][c+1] = Type_EscapeSequences;
-								c++;
-								while((content[r][c+1] >= '0' && content[r][c+1] <= '9')
-									|| (content[r][c+1] >= 'A' && content[r][c+1] <= 'F')
-									|| (content[r][c+1] >= 'a' && content[r][c+1] <= 'f'))
+								for(c++; c+1 < numberOfColumn[r]; c++)
 								{
-									type[r][c+1] = Type_EscapeSequences;
-									c++;
+									if((content[r][c+1] >= '0' && content[r][c+1] <= '9')
+										|| (content[r][c+1] >= 'A' && content[r][c+1] <= 'F')
+										|| (content[r][c+1] >= 'a' && content[r][c+1] <= 'f'))
+									{
+										type[r][c+1] = Type_EscapeSequences;
+									}
+									else
+									{
+										break;
+									}
 								}
 							}
 						}
@@ -488,10 +525,10 @@ void AnalysisColor()
 			}
 		}
 	}
-	//函数着色
+	//标识符着色
 	for(r=0; r<numberOfRow; r++)
 	{
-		for(c=0; c<numberOfColumn[r]-1; c++)
+		for(c=0; c+1 < numberOfColumn[r]; c++)
 		{
 			if(type[r][c] == Type_Default && content[r][c+1] == '(')
 			{
@@ -512,15 +549,75 @@ void AnalysisColor()
 				c = end;//防止死循环
 			}
 		}
-	}
-	//剩余内容均视为变量
-	for(r=0; r<numberOfRow; r++)
-	{
+		for(c=0; c+1 < numberOfColumn[r]; c++)//.后为变量
+		{
+			if(content[r][c] == '.' && type[r][c+1] == Type_Default)
+			{
+				for(c++; c<numberOfColumn[r]; c++)
+				{
+					if((content[r][c] >= '0' && content[r][c] <= '9')
+						|| (content[r][c] >= 'A' && content[r][c] <= 'Z')
+						|| (content[r][c] >= 'a' && content[r][c] <= 'z')
+						|| content[r][c] == '_')
+					{
+						type[r][c] = Type_Variable;
+					}
+					else
+					{
+						break;
+					}
+				}
+				c--;//连续.处理
+			}
+		}
+		for(c=0; c+2 < numberOfColumn[r]; c++)//->后为变量
+		{
+			if(content[r][c] == '-' && content[r][c+1] == '>' && type[r][c+2] == Type_Default)
+			{
+				for(c+=2; c<numberOfColumn[r]; c++)
+				{
+					if((content[r][c] >= '0' && content[r][c] <= '9')
+						|| (content[r][c] >= 'A' && content[r][c] <= 'Z')
+						|| (content[r][c] >= 'a' && content[r][c] <= 'z')
+						|| content[r][c] == '_')
+					{
+						type[r][c] = Type_Variable;
+					}
+					else
+					{
+						break;
+					}
+				}
+				c--;//连续->处理
+			}
+		}
+		for(c=0; c+2 < numberOfColumn[r]; c++)//::前为字符串(命名空间)
+		{
+			if(type[r][c] == Type_Default && content[r][c+1] == ':' && content[r][c+2] == ':')
+			{
+				for(end=c; c>=0; c--)
+				{
+					if((content[r][c] >= '0' && content[r][c] <= '9')
+						|| (content[r][c] >= 'A' && content[r][c] <= 'Z')
+						|| (content[r][c] >= 'a' && content[r][c] <= 'z')
+						|| content[r][c] == '_')
+					{
+						type[r][c] = Type_String;
+					}
+					else
+					{
+						break;
+					}
+				}
+				c = end;
+			}
+		}
+		//剩余内容均视为局部变量
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
 			if(type[r][c] == Type_Default)
 			{
-				type[r][c] = Type_Variable;
+				type[r][c] = Type_Variable_L;
 			}
 		}
 	}
@@ -1179,6 +1276,28 @@ int EditContent()
 	return Operate(operation);
 }
 
+void AdaptScreenBuffer()//自适应屏幕缓冲区
+{
+	int r, maxNumberOfColumn = 0;
+	HANDLE hdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	CONSOLE_SCREEN_BUFFER_INFO csbi;
+	GetConsoleScreenBufferInfo(hdout, &csbi);
+	//printf("%d %d\n", csbi.dwSize.X, csbi.dwSize.Y);
+	for(r=0; r<numberOfRow; r++)
+	{
+		if(numberOfColumn[r] > maxNumberOfColumn)
+		{
+			maxNumberOfColumn = numberOfColumn[r];
+		}
+	}
+	if(csbi.dwSize.X < maxNumberOfColumn || csbi.dwSize.Y < numberOfRow)
+	{
+		if(csbi.dwSize.X < maxNumberOfColumn) csbi.dwSize.X = maxNumberOfColumn;
+		if(csbi.dwSize.Y < numberOfRow) csbi.dwSize.Y = numberOfRow;
+		SetConsoleScreenBufferSize(hdout, csbi.dwSize);
+	}
+}
+
 int main()
 {
 	int r, f;
@@ -1195,6 +1314,7 @@ int main()
 	ReadContent(fileName);
 	system("chcp 65001");//以UTF-8编码显示
 	AnalysisColor();
+	AdaptScreenBuffer();
 	PrintContent();
 	SetConsoleMouseMode(1);
 	while(1)
@@ -1207,6 +1327,7 @@ int main()
 		}
 		free(type);
 		AnalysisColor();
+		//AdaptScreenBuffer();
 		if(f == 0) PrintContentR(cursorR);//仅重绘当前行
 		else PrintContent();
 	}
@@ -1286,5 +1407,13 @@ Text Editor 0.10
 ——修复 不能识别八进制数转义序列
 Text Editor 0.11
 ——优化 着色效率
+Text Editor 0.12
+——新增 将结构体内变量视为变量
+——新增 自适应屏幕缓冲区
+——新增 命名空间识别为字符串
+——优化 部分边界检查
+——优化 include双引号视为字符串
+——优化 include尖括号以字符串着色
+——优化 现在剩余内容均视为局部变量而非变量
 //——新增 插入中文字符
 --------------------------------*/
