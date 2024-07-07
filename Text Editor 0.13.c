@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+//#include <time.h>
 #include <conio.h>
 #include <windows.h>
 
@@ -28,12 +29,13 @@ enum Type {
 	Type_String = 12,//字符串
 	Type_EscapeSequences = 13,//转义序列
 	Type_ReservedWord = 14,//关键字
-	Type_Function = 15,//函数
-	Type_Variable = 16,//变量
-	Type_Variable_L = 17//局部变量
+	Type_ReservedWord_T = 15,//类型关键字
+	Type_Function = 16,//函数
+	Type_Variable = 17,//变量
+	Type_Variable_L = 18//局部变量
 };
 
-int Color[18] = {
+int Color[19] = {
 	//MoLo Console Minus
 	0x07,//编辑器默认
 	0x08,//行号
@@ -50,13 +52,14 @@ int Color[18] = {
 	0x06,//字符串
 	0x0e,//转义序列0x06
 	0x05,//关键字
+	0x05,//类型关键字0x01
 	0x0e,//函数
 	0x0b,//变量
 	0x03//局部变量
 	//MoLo Console Minus Minus
-	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0e, 0x0b, 0x0b
+	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0d, 0x0e, 0x0b, 0x0b
 	//MoLo Pencil Console
-	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf0, 0xf0, 0xf0
+	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf5, 0xf0, 0xf0, 0xf0
 };
 
 void gotoxy(short int x, short int y)//光标定位
@@ -135,8 +138,10 @@ char* InputFileName()
 	return fileName;
 }
 
-int FindReservedWord(int r1, int c1)
+void AnalysisColor()
 {
+	int r, c, start, end;
+	int bLevel = 0, w;
 	static char* word[48] = {
 		// C语言33关键字
 		"auto", "break", "case", "char", "const",
@@ -153,33 +158,19 @@ int FindReservedWord(int r1, int c1)
 		// 常见Python关键字增补4
 		"def", "from", "import", "in"
 	};
-	int i, j;
-	for(i=0; i<48; i++)//在所有关键字中比较
-	{
-		for(j=0; word[i][j]!=0; j++)
-		{
-			if(c1+j < numberOfColumn[r1] && content[r1][c1+j] == word[i][j]);
-			else break;
-		}
-		if(word[i][j] == 0)
-		{
-			if(c1+j < numberOfColumn[r1] && ((content[r1][c1+j] >= '0' && content[r1][c1+j] <= '9')
-				|| (content[r1][c1+j] >= 'A' && content[r1][c1+j] <= 'Z')
-				|| (content[r1][c1+j] >= 'a' && content[r1][c1+j] <= 'z')
-				|| content[r1][c1+j] == '_'))
-			{
-				continue;
-			}
-			return j;
-		}
-	}
-	return 0;//返回匹配关键字字符数
-}
-
-void AnalysisColor()
-{
-	int r, c, start, end;
-	int bLevel = 0;
+	static int isTypeWord[48] = {
+		1, 0, 0, 1, 0,
+		0, 0, 0, 1, 0,
+		0, 0, 1, 0, 0,
+		0, 0, 1, 1, 0,
+		0, 1, 1, 0, 0,
+		0, 0, 0, 0, 1,
+		1, 0, 0,
+		1, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0,
+		0, 0, 0, 0,
+	};//是否为类型关键字
 	type =(int**) calloc(numberOfRow, sizeof(int*));
 	//符号着色
 	for(r=0; r<numberOfRow; r++)
@@ -513,12 +504,39 @@ void AnalysisColor()
 				|| content[r][c-1] == '_'));
 			else if(type[r][c] == Type_Default)//仅搜索未着色部分
 			{
-				end = FindReservedWord(r, c);
-				if(end > 0)
+				start = c;
+				end = start;
+				for(w=0; w<48; w++)
 				{
-					for(start=c; c<=start+end-1; c++)
+					for(; word[w][end-start]!=0; end++)
 					{
-						type[r][c] = Type_ReservedWord;
+						if(end < numberOfColumn[r] && content[r][end] == word[w][end-start]);
+						else break;
+					}
+					if(word[w][end-start] == 0)
+					{
+						if(end < numberOfColumn[r] && ((content[r][end] >= '0' && content[r][end] <= '9')
+							|| (content[r][end] >= 'A' && content[r][end] <= 'Z')
+							|| (content[r][end] >= 'a' && content[r][end] <= 'z')
+							|| content[r][end] == '_'))
+						{
+							continue;
+						}
+						else
+						{
+							end--;
+							break;
+						}
+					}
+					end = start;
+				}
+				c = start;
+				if(end > start)
+				{
+					for(start=c; c<=end; c++)
+					{
+						if(isTypeWord[w] == 1) type[r][c] = Type_ReservedWord_T;
+						else type[r][c] = Type_ReservedWord;
 					}
 					c--;
 				}
@@ -1309,6 +1327,15 @@ int main()
 	printf("使用键盘输入小写英文字母、数字和符号，按住Shift即可输入大写英文字母和符号。\n");
 	printf("按下CapsLk时，若CapsLk亮起，则临时禁用编辑功能，直到CapsLk熄灭。\n");
 	printf("Ctrl+S保存，Ctrl+Shift+S另存为。保存后仍为当前文件编辑状态。\n");
+	/*while(1)
+	{
+		fileName = InputFileName();
+		ReadContent(fileName);
+		int clock0 = clock();
+		AnalysisColor();
+		int clock1 = clock();
+		printf("行数：%d\n色彩分析耗时：%dms\n", numberOfRow, clock1-clock0);
+	}*/
 	fileName = InputFileName();
 	//fileName = "Text Editor.c";
 	ReadContent(fileName);
@@ -1415,5 +1442,7 @@ Text Editor 0.12
 ——优化 include双引号视为字符串
 ——优化 include尖括号以字符串着色
 ——优化 现在剩余内容均视为局部变量而非变量
+Text Editor 0.13
+——新增 区分关键字和类型关键字
 //——新增 插入中文字符
 --------------------------------*/
