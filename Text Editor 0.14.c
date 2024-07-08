@@ -52,7 +52,7 @@ int Color[19] = {
 	0x06,//字符串
 	0x0e,//转义序列0x06
 	0x05,//关键字
-	0x05,//类型关键字0x01
+	0x01,//类型关键字0x01
 	0x0e,//函数
 	0x0b,//变量
 	0x03//局部变量
@@ -231,7 +231,13 @@ void AnalysisColor()
 			{
 				if(c > 0 && ((content[r][c-1] >= 'A' && content[r][c-1] <= 'Z')
 					|| (content[r][c-1] >= 'a' && content[r][c-1] <= 'z')
-					|| content[r][c-1] == '_'));
+					|| content[r][c-1] == '_'))
+				{
+					while(content[r][c+1] >= '0' && content[r][c+1] <= '9')
+					{
+						c++;//连续跳过多个数字
+					}
+				}
 				else//数字前面不是字母或下划线
 				{
 					type[r][c] = Type_Number;
@@ -245,7 +251,7 @@ void AnalysisColor()
 					type[r][c] = Type_Number;
 				}
 			}
-			if(content[r][c] == '0' && c+1 < numberOfColumn[r] && content[r][c+1] == 'x')//十六进制数
+			if(content[r][c] == '0' && type[r][c] == Type_Number && c+1 < numberOfColumn[r] && content[r][c+1] == 'x')//十六进制数
 			{
 				if(c+2 < numberOfColumn[r])
 				{
@@ -318,30 +324,26 @@ void AnalysisColor()
 	start = 0;
 	for(r=0; r<numberOfRow; r++)
 	{
-		for(c=0; c+1 < numberOfColumn[r]; c++)
+		for(c=0; c<numberOfColumn[r]; c++)
 		{
-			if(content[r][c] == '/' && content[r][c+1] == '*')
+			if(content[r][c] == '/' && c+1 < numberOfColumn[r])
 			{
-				start = 1;
+				if(content[r][c+1] == '*') start = 1;
+				else if(content[r][c+1] == '/')
+				{
+					for(; c<numberOfColumn[r]; c++)
+					{
+						type[r][c] = Type_Comment;
+					}
+					continue;
+				}
 			}
-			if(start == 1)
-			{
-				type[r][c] = Type_Comment;
-			}
-			if(content[r][c] == '*' && content[r][c+1] == '/')
+			if(start == 1) type[r][c] = Type_Comment;
+			if(content[r][c] == '*' && c+1 < numberOfColumn[r] && content[r][c+1] == '/')
 			{
 				start = 0;
 				type[r][c+1] = Type_Comment;
-			}
-		}
-		for(c=0; c+1 < numberOfColumn[r]; c++)
-		{
-			if(content[r][c] == '/' && content[r][c+1] == '/')
-			{
-				for(; c<numberOfColumn[r]; c++)
-				{
-					type[r][c] = Type_Comment;
-				}
+				c++;
 			}
 		}
 	}
@@ -350,7 +352,7 @@ void AnalysisColor()
 	{
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
-			if(content[r][c] == '\'')
+			if(content[r][c] == '\'' && type[r][c] == Type_Default)
 			{
 				start = c;
 				end = -1;
@@ -379,7 +381,7 @@ void AnalysisColor()
 		}
 		for(c=0; c<numberOfColumn[r]; c++)
 		{
-			if(content[r][c] == '"')
+			if(content[r][c] == '"' && type[r][c] == Type_Default)
 			{
 				start = c;
 				end = -1;
@@ -520,6 +522,7 @@ void AnalysisColor()
 							|| (content[r][end] >= 'a' && content[r][end] <= 'z')
 							|| content[r][end] == '_'))
 						{
+							end = start;
 							continue;
 						}
 						else
@@ -968,6 +971,7 @@ int Operate(char operation)
 			newContent[cursorR+1] = newLine;
 			newNumberOfColumn[cursorR+1] = 1;
 			newContent[cursorR] = content[cursorR];
+			if(newContent[cursorR][cursorC] != '\n') newContent[cursorR][cursorC] = '\n';
 			newNumberOfColumn[cursorR] = numberOfColumn[cursorR];
 		}
 		else
@@ -1444,5 +1448,12 @@ Text Editor 0.12
 ——优化 现在剩余内容均视为局部变量而非变量
 Text Editor 0.13
 ——新增 区分关键字和类型关键字
+Text Editor 0.14
+——优化 块注释的边界检查
+——优化 更准确的判断注释的/和*混用
+——优化 不再识别与块注释互套的字符和字符串
+——优化 标识符尾部连续数字识别
+——修复 in开头的3字符识别为关键字
+——修复 新建文件的首次换行再次打开消失
 //——新增 插入中文字符
 --------------------------------*/
