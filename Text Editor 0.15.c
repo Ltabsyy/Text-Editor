@@ -1,8 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
-//#include <time.h>
+#include <time.h>
 #include <conio.h>
 #include <windows.h>
+//#include <commdlg.h>//链接参数-lcomdlg32
 
 #define MaxFileName 128
 
@@ -32,10 +33,11 @@ enum Type {
 	Type_ReservedWord_T = 15,//类型关键字
 	Type_Function = 16,//函数
 	Type_Variable = 17,//变量
-	Type_Variable_L = 18//局部变量
+	Type_Variable_G = 18,//全局变量/类
+	Type_Variable_L = 19//局部变量
 };
 
-int Color[19] = {
+int Color[20] = {
 	//MoLo Console Minus
 	0x07,//编辑器默认
 	0x08,//行号
@@ -52,14 +54,15 @@ int Color[19] = {
 	0x06,//字符串
 	0x0e,//转义序列0x06
 	0x05,//关键字
-	0x01,//类型关键字0x01
+	0x05,//类型关键字0x01
 	0x0e,//函数
 	0x0b,//变量
+	0x0b,//全局变量/类0x01
 	0x03//局部变量
 	//MoLo Console Minus Minus
-	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0d, 0x0e, 0x0b, 0x0b
+	//0x07, 0x07, 0x0f, 0x02, 0x0c, 0x0c, 0x0c, 0x0c, 0x0c, 0x09, 0x0d, 0x09, 0x09, 0x09, 0x0d, 0x0d, 0x0e, 0x0b, 0x0b, 0x0b
 	//MoLo Pencil Console
-	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf5, 0xf0, 0xf0, 0xf0
+	//0xf0, 0xf0, 0xf1, 0xf8, 0xf4, 0xf1, 0xf4, 0xf1, 0xf4, 0xf1, 0xf0, 0xf1, 0xf1, 0xf4, 0xf5, 0xf5, 0xf0, 0xf0, 0xf0, 0xf0
 };
 
 void gotoxy(short int x, short int y)//光标定位
@@ -137,7 +140,37 @@ char* InputFileName()
 	}
 	return fileName;
 }
-
+/*
+char* OpenFileDialog()//文件选择器，需要加链接参数-lcomdlg32
+{
+	OPENFILENAMEA ofn;
+	char* fileName =(char*) calloc(MaxFileName, sizeof(char));
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize     = sizeof(ofn);
+	ofn.hwndOwner       = NULL;
+	ofn.lpstrFile       = fileName;
+	ofn.nMaxFile        = MaxFileName*sizeof(char);
+	//ofn.lpstrFilter     = "所有.c*文件\0*.c*\0文本文件\0*.txt\0";
+	ofn.lpstrFilter     = "所有文件\0*.*\0";
+	ofn.nFilterIndex    = 1;
+	ofn.lpstrFileTitle  = NULL;
+	ofn.nMaxFileTitle   = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags           = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	SetProcessDPIAware();//避免Windows缩放造成模糊
+	if(GetOpenFileNameA(&ofn))
+	{
+		//printf("选择打开的文件是：%s\n", ofn.lpstrFile);
+		//return ofn.lpstrFile;
+		return fileName;
+	}
+	else
+	{
+		free(fileName);
+		return NULL;
+	}
+}
+*/
 void AnalysisColor()
 {
 	int r, c, start, end;
@@ -285,32 +318,33 @@ void AnalysisColor()
 		{
 			for(c=0; c<numberOfColumn[r]; c++)
 			{
-				if(content[r][c] == '<' || content[r][c] == '"')
+				if(content[r][c] == '<')//将<>内以字符串着色
 				{
-					if(content[r][c] == '<')//将<>内以字符串着色
+					start = c;
+					end = -1;
+					for(c++; c<numberOfColumn[r]; c++)
 					{
-						start = c;
-						end = -1;
-						for(c++; c<numberOfColumn[r]; c++)
+						if(content[r][c] == '>')
 						{
-							if(content[r][c] == '>')
-							{
-								end = c;
-								break;
-							}
+							end = c;
+							break;
 						}
-						c = start;
-						if(end != -1)
+					}
+					c = start;
+					if(end != -1)
+					{
+						for(c++; c<end; c++)
 						{
-							for(c++; c<end; c++)
+							if(type[r][c] == Type_Default)
 							{
-								if(type[r][c] == Type_Default)
-								{
-									type[r][c] = Type_String;
-								}
+								type[r][c] = Type_String;
 							}
 						}
 					}
+					break;
+				}
+				else if(content[r][c] == '"')
+				{
 					break;
 				}
 				else
@@ -329,7 +363,7 @@ void AnalysisColor()
 			if(content[r][c] == '/' && c+1 < numberOfColumn[r])
 			{
 				if(content[r][c+1] == '*') start = 1;
-				else if(content[r][c+1] == '/')
+				else if(content[r][c+1] == '/' && start == 0)
 				{
 					for(; c<numberOfColumn[r]; c++)
 					{
@@ -358,7 +392,11 @@ void AnalysisColor()
 				end = -1;
 				for(c++; c<numberOfColumn[r]; c++)
 				{
-					if(content[r][c] == '\'' && type[r][c] == Type_Default)
+					/*if(content[r][c] == '\\' && type[r][c] == Type_Default && c+1 < numberOfColumn[r])
+					{
+						c++;//判断'\''和'\\'
+					}
+					else */if(content[r][c] == '\'' && type[r][c] == Type_Default)
 					{
 						if(content[r][c-1] == '\\' && c-2 >= 0 && content[r][c-2] != '\\')
 						{
@@ -633,12 +671,39 @@ void AnalysisColor()
 				c = end;
 			}
 		}
-		//剩余内容均视为局部变量
-		for(c=0; c<numberOfColumn[r]; c++)
+		for(c=0; c<numberOfColumn[r]; c++)//开头为大写字母或下划线视为全局变量
 		{
-			if(type[r][c] == Type_Default)
+			if(type[r][c] == Type_Default && content[r][c] != ' ' && content[r][c] != '\t')
 			{
-				type[r][c] = Type_Variable_L;
+				if((content[r][c] >= 'A' && content[r][c] <= 'Z')
+					|| content[r][c] == '_')
+				{
+					for(; c<numberOfColumn[r]; c++)
+					{
+						if(type[r][c] == Type_Default && content[r][c] != ' ' && content[r][c] != '\t')
+						{
+							type[r][c] = Type_Variable_G;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
+				else//剩余内容均视为局部变量
+				{
+					for(; c<numberOfColumn[r]; c++)
+					{
+						if(type[r][c] == Type_Default && content[r][c] != ' ' && content[r][c] != '\t')
+						{
+							type[r][c] = Type_Variable_L;
+						}
+						else
+						{
+							break;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1312,6 +1377,7 @@ void AdaptScreenBuffer()//自适应屏幕缓冲区
 			maxNumberOfColumn = numberOfColumn[r];
 		}
 	}
+	maxNumberOfColumn += Place(numberOfRow)+1;
 	if(csbi.dwSize.X < maxNumberOfColumn || csbi.dwSize.Y < numberOfRow)
 	{
 		if(csbi.dwSize.X < maxNumberOfColumn) csbi.dwSize.X = maxNumberOfColumn;
@@ -1333,7 +1399,9 @@ int main()
 	printf("Ctrl+S保存，Ctrl+Shift+S另存为。保存后仍为当前文件编辑状态。\n");
 	/*while(1)
 	{
-		fileName = InputFileName();
+		//fileName = InputFileName();
+		fileName = OpenFileDialog();
+		printf("[File]>%s\n", fileName);
 		ReadContent(fileName);
 		int clock0 = clock();
 		AnalysisColor();
@@ -1341,6 +1409,8 @@ int main()
 		printf("行数：%d\n色彩分析耗时：%dms\n", numberOfRow, clock1-clock0);
 	}*/
 	fileName = InputFileName();
+	//fileName = OpenFileDialog();
+	//printf("[File]>%s\n", fileName);
 	//fileName = "Text Editor.c";
 	ReadContent(fileName);
 	system("chcp 65001");//以UTF-8编码显示
@@ -1449,11 +1519,16 @@ Text Editor 0.12
 Text Editor 0.13
 ——新增 区分关键字和类型关键字
 Text Editor 0.14
-——优化 块注释的边界检查
+——优化 块注释的中间行尾着色
 ——优化 更准确的判断注释的/和*混用
 ——优化 不再识别与块注释互套的字符和字符串
 ——优化 标识符尾部连续数字识别
 ——修复 in开头的3字符识别为关键字
 ——修复 新建文件的首次换行再次打开消失
+Text Editor 0.15
+——新增 将大写字母或下划线开头的单词视为全局变量
+——优化 自适应屏幕缓冲区考虑行号
+——修复 块注释的终止会被行注释取消
 //——新增 插入中文字符
+//——新增 文件选择器
 --------------------------------*/
