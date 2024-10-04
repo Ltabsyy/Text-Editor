@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+//#include <time.h>
 #include <conio.h>
 #include <windows.h>
 //#include <commdlg.h>//链接参数-lcomdlg32
@@ -175,7 +175,7 @@ void AnalysisColor()
 {
 	int r, c, start, end;
 	int bLevel = 0, w;
-	static char* word[48] = {
+	static char* word[58] = {
 		// C语言33关键字
 		"auto", "break", "case", "char", "const",
 		"continue", "default", "do", "double", "else",
@@ -184,14 +184,16 @@ void AnalysisColor()
 		"return", "short", "signed", "sizeof", "static",
 		"struct", "switch", "typedef", "union", "unsigned",
 		"void", "volatile", "while",
-		// 常见C++关键字增补11
-		"bool", "class", "delete", "false", "namespace",
-		"new", "private", "public", "this", "true",
-		"using",
-		// 常见Python关键字增补4
-		"def", "from", "import", "in"
+		// 常见C++关键字增补18
+		"and", "bool", "class", "delete", "false",
+		"friend", "namespace", "new", "not", "operator",
+		"or", "private", "public","template", "this",
+		"true", "typename", "using",
+		// 常见Python关键字增补7
+		"False", "True", "def", "elif", "from",
+		"import", "in"
 	};
-	static int isTypeWord[48] = {
+	static int isTypeWord[58] = {
 		1, 0, 0, 1, 0,
 		0, 0, 0, 1, 0,
 		0, 0, 1, 0, 0,
@@ -199,10 +201,12 @@ void AnalysisColor()
 		0, 1, 1, 0, 0,
 		0, 0, 0, 0, 1,
 		1, 0, 0,
-		1, 0, 0, 0, 0,
+		0, 1, 0, 0, 0,
 		0, 0, 0, 0, 0,
-		0,
-		0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0
 	};//是否为类型关键字
 	type =(int**) calloc(numberOfRow, sizeof(int*));
 	//符号着色
@@ -546,7 +550,7 @@ void AnalysisColor()
 			{
 				start = c;
 				end = start;
-				for(w=0; w<48; w++)
+				for(w=0; w<58; w++)
 				{
 					for(; word[w][end-start]!=0; end++)
 					{
@@ -816,7 +820,7 @@ void PrintContentR(int r)
 
 void PrintContent()
 {
-	int r, c;
+	int r;
 	clrscr();
 	for(r=0; r<numberOfRow; r++)
 	{
@@ -1092,7 +1096,7 @@ int Operate(char operation)
 
 int EditContent()
 {
-	int operation, r, c, tab;
+	int operation, /*r,*/ c, tab;
 	HANDLE hdin = GetStdHandle(STD_INPUT_HANDLE);
 	COORD mousePos = {0, 0};
 	INPUT_RECORD rcd;
@@ -1386,12 +1390,13 @@ void AdaptScreenBuffer()//自适应屏幕缓冲区
 	}
 }
 
-int main()
+int main(int argc, char** argv)
 {
 	int r, f;
 	setbgcolor(Color[Type_Default]);
 	printf("Text Editor使用说明：\n");
 	printf("输入名称或拖入文件后回车打开文件，若不存在则自动创建该文件。\n");
+	printf("也可拖动文件至程序图标，或设置程序为文件默认打开方式以打开文件。\n");
 	printf("此程序以UTF-8编码显示文件内容，自动显示高亮和缩进提示线，无视文件后缀。\n");
 	printf("使用鼠标左键或方向键定位光标，使用滚轮时光标移动3行每格。\n");
 	printf("使用键盘输入小写英文字母、数字和符号，按住Shift即可输入大写英文字母和符号。\n");
@@ -1408,10 +1413,17 @@ int main()
 		int clock1 = clock();
 		printf("行数：%d\n色彩分析耗时：%dms\n", numberOfRow, clock1-clock0);
 	}*/
-	fileName = InputFileName();
-	//fileName = OpenFileDialog();
-	//printf("[File]>%s\n", fileName);
-	//fileName = "Text Editor.c";
+	if(argc == 2)
+	{
+		fileName = argv[1];
+	}
+	else
+	{
+		fileName = InputFileName();
+		//fileName = OpenFileDialog();
+		//printf("[File]>%s\n", fileName);
+		//fileName = "Text Editor.c";
+	}
 	ReadContent(fileName);
 	system("chcp 65001");//以UTF-8编码显示
 	AnalysisColor();
@@ -1529,6 +1541,9 @@ Text Editor 0.15
 ——新增 将大写字母或下划线开头的单词视为全局变量
 ——优化 自适应屏幕缓冲区考虑行号
 ——修复 块注释的终止会被行注释取消
+Text Editor 0.16
+——新增 拖动文件到程序图标打开
+——优化 增补10个常见C++/Python关键字
 //——新增 插入中文字符
 //——新增 文件选择器
 --------------------------------*/
