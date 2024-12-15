@@ -174,8 +174,10 @@ char* OpenFileDialog()//文件选择器，需要加链接参数-lcomdlg32
 void AnalysisColor()
 {
 	int r, c, start, end;
-	int bLevel = 0, w;
-	static char* word[58] = {
+	int bLevel = 0, w, wstart, wend;
+	static int isInited = 0;
+	enum {NumberOfWord = 60};
+	static char* word[NumberOfWord] = {
 		// C语言33关键字
 		"auto", "break", "case", "char", "const",
 		"continue", "default", "do", "double", "else",
@@ -187,13 +189,13 @@ void AnalysisColor()
 		// 常见C++关键字增补18
 		"and", "bool", "class", "delete", "false",
 		"friend", "namespace", "new", "not", "operator",
-		"or", "private", "public","template", "this",
-		"true", "typename", "using",
+		"or", "private", "protected", "public","template",
+		"this", "true", "typename", "using", "virtual",
 		// 常见Python关键字增补7
 		"False", "True", "def", "elif", "from",
 		"import", "in"
 	};
-	static int isTypeWord[58] = {
+	static int isTypeWord[NumberOfWord] = {
 		1, 0, 0, 1, 0,
 		0, 0, 0, 1, 0,
 		0, 0, 1, 0, 0,
@@ -204,10 +206,39 @@ void AnalysisColor()
 		0, 1, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
-		0, 0, 0,
+		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0
 	};//是否为类型关键字
+	if(isInited == 0)//初始化
+	{
+		//排序关键字列表
+		char* temp;
+		for(c=1; c<60; c++)//冒泡排序
+		{
+			for(w=0; w<NumberOfWord-1; w++)
+			{
+				if(word[w][0] > word[w+1][0])//仅首字母
+				{
+					temp = word[w];
+					word[w] = word[w+1];
+					word[w+1] = temp;
+					if(isTypeWord[w] == isTypeWord[w+1]);
+					else if(isTypeWord[w] == 0)
+					{
+						isTypeWord[w] = 1;
+						isTypeWord[w+1] = 0;
+					}
+					else
+					{
+						isTypeWord[w] = 0;
+						isTypeWord[w+1] = 1;
+					}
+				}
+			}
+		}
+		isInited = 1;
+	}
 	type =(int**) calloc(numberOfRow, sizeof(int*));
 	//符号着色
 	for(r=0; r<numberOfRow; r++)
@@ -548,9 +579,20 @@ void AnalysisColor()
 				|| content[r][c-1] == '_'));
 			else if(type[r][c] == Type_Default)//仅搜索未着色部分
 			{
+				//定位搜索范围
+				for(wstart=0; wstart<NumberOfWord; wstart++)
+				{
+					if(word[wstart][0] == content[r][c]) break;
+				}
+				if(wstart == NumberOfWord) continue;
+				for(wend=wstart; wend<NumberOfWord; wend++)
+				{
+					if(word[wend][0] != content[r][c]) break;
+				}
+				//搜索
 				start = c;
 				end = start;
-				for(w=0; w<58; w++)
+				for(w=wstart; w<wend; w++)
 				{
 					for(; word[w][end-start]!=0; end++)
 					{
@@ -575,6 +617,7 @@ void AnalysisColor()
 					}
 					end = start;
 				}
+				//着色
 				c = start;
 				if(end > start)
 				{
@@ -1544,6 +1587,9 @@ Text Editor 0.15
 Text Editor 0.16
 ——新增 拖动文件到程序图标打开
 ——优化 增补10个常见C++/Python关键字
+Text Editor 0.17
+——优化 增补2个常见C++关键字(protected,virtual)
+——优化 通过关键字列表预处理加速关键字着色
 //——新增 插入中文字符
 //——新增 文件选择器
 --------------------------------*/
